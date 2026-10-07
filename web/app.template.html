@@ -1,0 +1,1075 @@
+<title>AlgoLens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky top bar + one content column (max 1240px); views swap in place: Overview leaderboard → Strategy detail → Compare → Portfolio → Add. */
+:root {
+  --bg: #f3f5f7; --surface: #ffffff; --surface-2: #eef1f4; --line: #dde3e9; --line-2: #c9d2db;
+  --fg: #142029; --fg-2: #4b5a66; --fg-3: #7b8994;
+  --accent: #0e6f73; --accent-weak: #d8eced; --accent-fg: #ffffff;
+  --gain: #12805c; --gain-weak: #dcf1e8; --loss: #c2412d; --loss-weak: #fbe4df; --warn: #a86a00; --warn-weak: #fbefd4;
+  --c1: #0e6f73; --c2: #b05b14; --c3: #5b4bc4; --c4: #b0306a;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1519; --surface: #161e24; --surface-2: #1c262d; --line: #26323a; --line-2: #34434d;
+  --fg: #e3eaef; --fg-2: #a3b1bb; --fg-3: #73838e;
+  --accent: #4fb8b8; --accent-weak: #16393b; --accent-fg: #06201f;
+  --gain: #3fbf8c; --gain-weak: #123428; --loss: #ef7a64; --loss-weak: #3c1c16; --warn: #e2a73c; --warn-weak: #3a2b0e;
+  --c1: #4fb8b8; --c2: #e39a52; --c3: #9a8cf2; --c4: #e676a6; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1519; --surface: #161e24; --surface-2: #1c262d; --line: #26323a; --line-2: #34434d;
+  --fg: #e3eaef; --fg-2: #a3b1bb; --fg-3: #73838e;
+  --accent: #4fb8b8; --accent-weak: #16393b; --accent-fg: #06201f;
+  --gain: #3fbf8c; --gain-weak: #123428; --loss: #ef7a64; --loss-weak: #3c1c16; --warn: #e2a73c; --warn-weak: #3a2b0e;
+  --c1: #4fb8b8; --c2: #e39a52; --c3: #9a8cf2; --c4: #e676a6; color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.5 }
+.num, td.n, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em }
+.gain { color: var(--gain) } .loss { color: var(--loss) } .muted { color: var(--fg-2) } .faint { color: var(--fg-3) }
+button, input, select { font: inherit; color: inherit }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px }
+
+/* Top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line) }
+.top-in { max-width: 1240px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap }
+.brand { display: flex; align-items: center; gap: 9px; font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -0.02em; text-decoration: none; color: var(--fg) }
+.brand svg { flex: none }
+.nav { display: flex; gap: 2px; flex-wrap: wrap }
+.nav a { padding: 6px 12px; border-radius: 999px; color: var(--fg-2); text-decoration: none; font-weight: 500 }
+.nav a:hover { color: var(--fg); background: var(--surface-2) }
+.nav a[aria-current="page"] { background: var(--fg); color: var(--bg) }
+.sync { margin-left: auto; font-size: 12px; color: var(--fg-3); display: flex; align-items: center; gap: 6px }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gain); box-shadow: 0 0 0 3px var(--gain-weak) }
+
+main { max-width: 1240px; margin: 0 auto; padding: 22px 16px 60px; display: grid; gap: 22px }
+main > * { min-width: 0 }
+.tablewrap table { min-width: max-content }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(24px, 3.2vw, 34px); letter-spacing: -0.03em; line-height: 1.1; margin: 0; text-wrap: balance }
+h2 { font-family: var(--display); font-weight: 600; font-size: 18px; letter-spacing: -0.01em; margin: 0 }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--fg-3); font-weight: 600 }
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap }
+.head p { margin: 6px 0 0; color: var(--fg-2); max-width: 64ch }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; min-width: 0 }
+.panel-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 18px }
+
+/* KPI strip: one bordered band, cells separated by rules */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden }
+.kpi { padding: 14px 16px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0 }
+.kpi .v { font-family: var(--mono); font-size: 21px; font-weight: 600; letter-spacing: -0.03em; margin-top: 4px; font-variant-numeric: tabular-nums }
+.kpi .s { font-size: 12px; color: var(--fg-3); margin-top: 1px }
+
+/* Controls */
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.field { background: var(--surface); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 10px; min-width: 0 }
+.field:focus { outline: 2px solid var(--accent); outline-offset: -1px }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--surface) }
+.seg button { border: 0; background: none; padding: 5px 11px; cursor: pointer; color: var(--fg-2); font-size: 13px }
+.seg button + button { border-left: 1px solid var(--line) }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg) }
+.btn { border: 1px solid var(--line-2); background: var(--surface); border-radius: 8px; padding: 7px 14px; cursor: pointer; font-weight: 500 }
+.btn:hover { border-color: var(--fg-3) }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg) }
+
+/* Leaderboard */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface) }
+table { border-collapse: collapse; width: 100%; font-size: 13px }
+th { text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--surface) }
+th.n, td.n { text-align: right }
+th button { all: unset; cursor: pointer }
+th button:hover { color: var(--fg) }
+th[aria-sort] button { color: var(--accent) }
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap }
+tbody tr:last-child td { border-bottom: 0 }
+tbody tr.click { cursor: pointer }
+tbody tr.click:hover td { background: var(--surface-2) }
+.sname { font-weight: 600; color: var(--fg); max-width: 260px; overflow: hidden; text-overflow: ellipsis; display: block }
+.screator { font-size: 12px; color: var(--fg-3) }
+.chip { display: inline-block; font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 5px; background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--line) }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 8px; border-radius: 999px; font-weight: 500 }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor }
+.pill.live { color: var(--gain); background: var(--gain-weak) }
+.pill.active { color: var(--accent); background: var(--accent-weak) }
+.pill.paused { color: var(--warn); background: var(--warn-weak) }
+.tag { font-size: 11px; color: var(--fg-3); border: 1px dashed var(--line-2); border-radius: 5px; padding: 0 5px; margin-left: 4px }
+.rank { font-family: var(--mono); color: var(--fg-3); font-size: 12px }
+
+/* Charts */
+.chart { width: 100%; height: auto; display: block; overflow: visible }
+.chart text { fill: var(--fg-3); font-family: var(--mono); font-size: 10.5px }
+.chart .grid { stroke: var(--line); stroke-width: 1 }
+.chart .zero { stroke: var(--line-2); stroke-width: 1 }
+.chartbox { position: relative }
+.tip { position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); font-family: var(--mono); font-size: 12px; padding: 6px 9px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -110%); z-index: 3 }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--fg-2) }
+.legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle }
+
+/* Heatmap */
+.heat { border-collapse: separate; border-spacing: 3px; font-size: 12px; width: 100% }
+.heat th { padding: 2px 4px; border: 0; text-align: center; font-size: 10.5px }
+.heat th.y { text-align: left; color: var(--fg-2); font-family: var(--mono); font-size: 12px; text-transform: none; letter-spacing: 0 }
+.heat td { padding: 7px 2px; text-align: center; border: 0; border-radius: 5px; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 11.5px; min-width: 46px }
+.heat td.tot { font-weight: 600; background: var(--surface-2) }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); column-gap: 28px }
+.stats div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px dotted var(--line-2); font-size: 13px }
+.stats dt { color: var(--fg-2) } .stats dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right }
+
+.back { color: var(--fg-2); text-decoration: none; font-size: 13px }
+.back:hover { color: var(--accent) }
+.meta-line { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--fg-2); font-size: 13px; margin-top: 8px; align-items: center }
+
+.pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 8px }
+.pick label { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; min-width: 0 }
+.pick label:has(input:checked) { border-color: var(--accent); background: var(--accent-weak) }
+.pick .pn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0 }
+.pick input[type=number] { width: 58px; text-align: right }
+.swatch { width: 10px; height: 10px; border-radius: 3px; flex: none }
+
+.note { font-size: 12.5px; color: var(--fg-2); background: var(--surface-2); border-radius: 8px; padding: 10px 12px; line-height: 1.55 }
+.corr td { text-align: center; font-family: var(--mono); font-size: 12px; min-width: 56px }
+.steps { display: grid; gap: 12px; counter-reset: s; padding: 0; margin: 0; list-style: none }
+.steps li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; counter-increment: s }
+.steps li::before { content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--accent-weak); color: var(--accent); font-weight: 600; display: grid; place-items: center; font-size: 12px }
+.queue li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px }
+.srcseg button { padding: 5px 12px }
+.srcseg .cnt { font-family: var(--mono); font-size: 11px; opacity: .7; margin-left: 4px }
+.src { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; margin-left: 6px; vertical-align: 1px }
+.src.own { background: var(--accent-weak); color: var(--accent) }
+.src.shared { background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--line) }
+.type { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; padding: 1px 6px; border-radius: 5px; border: 1px solid currentColor; color: var(--loss) }
+.type.off { color: var(--fg-3) }
+.dash td { vertical-align: top }
+.dash tr.main td { padding-top: 12px; padding-bottom: 12px }
+.dash tr.main.open td { border-bottom-color: transparent }
+.dash .sub { font-size: 12px; color: var(--fg-3); margin-top: 3px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
+.posrow td { background: var(--surface-2); padding: 0 12px 12px }
+.postable { width: 100%; font-size: 12.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+.postable th { background: var(--surface); padding: 7px 10px } .postable td { padding: 6px 10px }
+.postable tr.closed td { color: var(--fg-3) }
+.chev { display: inline-block; width: 14px; color: var(--fg-3); transition: transform .15s }
+tr.open .chev { transform: rotate(90deg) }
+.links a { color: var(--accent); text-decoration: none; font-size: 12px; margin-right: 12px }
+.links a:hover { text-decoration: underline }
+.colpick { position: relative }
+.colpick-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; min-width: 210px; box-shadow: 0 8px 24px rgb(0 0 0 / .12) }
+.colpick-menu label { display: flex; gap: 8px; align-items: center; cursor: pointer; white-space: nowrap }
+.statchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
+.statchips button { border: 1px solid var(--line-2); background: var(--surface); border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; color: var(--fg-2) }
+.statchips button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg) }
+.updated { font-size: 12px; color: var(--fg-3); display: flex; align-items: center; gap: 6px }
+/* live pages */
+#toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; z-index: 50; max-width: min(92vw, 520px); font-size: 13px; box-shadow: 0 8px 24px rgb(0 0 0 / .2) }
+#toast.bad { background: var(--loss); color: #fff }
+.goto { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r) }
+.goto a { font-size: 13px; color: var(--fg-2); text-decoration: none; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line) }
+.goto a:hover { color: var(--accent); border-color: var(--accent) }
+details.panel > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer }
+details.panel > summary::-webkit-details-marker { display: none }
+details.panel > summary h2::before { content: "▸ "; color: var(--fg-3) }
+details.panel[open] > summary h2::before { content: "▾ " }
+.xchip { font-family: var(--mono); font-size: 10.5px; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: var(--accent-weak); color: var(--accent); margin-right: 3px }
+.schip { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: var(--gain-weak); color: var(--gain) }
+.schip.pos { background: color-mix(in srgb, var(--c3) 16%, var(--surface)); color: var(--c3) }
+.mchip { font-family: var(--mono); font-size: 11px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--fg-2) }
+.capchip { font-family: var(--mono); font-size: 11.5px; font-weight: 600; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line-2) }
+.ppill { font-family: var(--mono); font-size: 11.5px; padding: 1px 6px; border-radius: 5px; background: var(--surface-2); color: var(--fg-2) }
+.ppill.g { background: var(--gain-weak); color: var(--gain) } .ppill.l { background: var(--loss-weak); color: var(--loss) }
+.ddbar { width: 90px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden } .ddbar span { display: block; height: 100% }
+.ddtxt { font-family: var(--mono); font-size: 11px; color: var(--fg-3); margin-top: 4px }
+.copy { all: unset; cursor: pointer; color: var(--accent); font-size: 12px; text-decoration: underline dotted }
+.copy:focus-visible { outline: 2px solid var(--accent) }
+.dash tfoot td { border-top: 2px solid var(--accent); background: var(--surface-2); padding-top: 12px; padding-bottom: 12px }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 268px), 1fr)); gap: 14px }
+.scard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.scard .chips { display: flex; gap: 5px; align-items: center; flex-wrap: wrap } .grow { flex: 1 }
+.scard h3 { margin: 0; font-size: 15px; font-family: var(--display); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.scard h3 a { color: inherit; text-decoration: none } .scard h3 a:hover { color: var(--accent) }
+.pnlbox { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; background: var(--surface-2); border-radius: 9px; padding: 10px 12px }
+.pnlbox .big { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: -0.03em }
+.cardfoot { display: flex; align-items: center; gap: 10px; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 8px }
+.cardfoot .ids { font-size: 11.5px; line-height: 1.5; min-width: 0 }
+.stline { display: flex; justify-content: space-between; align-items: center }
+.scard.removed { border-color: var(--loss); opacity: .85 } .scard.removed .banner { background: var(--loss); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; margin: -14px -14px 4px; padding: 6px 12px; border-radius: 11px 11px 0 0 }
+.sw { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-2); cursor: pointer; user-select: none }
+.sw input { position: absolute; opacity: 0; width: 1px; height: 1px }
+.sw > span:first-of-type { width: 30px; height: 17px; border-radius: 9px; background: var(--line-2); position: relative; transition: background .15s; flex: none }
+.sw > span:first-of-type::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: transform .15s }
+.sw input:checked + span { background: var(--gain) } .sw.err input:checked + span { background: var(--loss) }
+.sw input:checked + span::after { transform: translateX(13px) }
+.sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px }
+.sw input:disabled + span { opacity: .5 }
+.sw.big > span:first-of-type { width: 40px; height: 22px; border-radius: 11px } .sw.big > span:first-of-type::after { width: 18px; height: 18px } .sw.big input:checked + span::after { transform: translateX(18px) }
+.sw.big input:checked + span { background: var(--accent) }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
+.setrow { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap }
+.setrow.col { flex-direction: column; align-items: flex-start } .setrow:last-child { border-bottom: 0 }
+.setrow > div:first-child { flex: 1; min-width: 200px } .setrow p { margin: 2px 0 0; color: var(--fg-3); font-size: 12.5px }
+.meter { height: 5px; border-radius: 3px; background: var(--surface-2); margin-top: 10px; overflow: hidden } .meter span { display: block; height: 100%; background: var(--accent) }
+.fmtpick { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 6px }
+.fmt { border: 1px solid var(--line-2); border-radius: 10px; padding: 12px; cursor: pointer; display: grid; gap: 6px; font-size: 12.5px }
+.fmt input { position: absolute; opacity: 0 } .fmt:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-weak) }
+.fmt:has(input:focus-visible) { outline: 2px solid var(--accent) }
+.fmt pre { margin: 0; font-family: var(--mono); font-size: 11.5px; background: var(--surface-2); padding: 8px; border-radius: 6px; white-space: pre-wrap }
+.tgbubble { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); border: 1px solid var(--line); border-radius: 12px 12px 12px 4px; padding: 12px 14px; font-size: 13px; line-height: 1.55; max-height: 420px; overflow: auto; overflow-wrap: anywhere }
+.tgbubble a { color: var(--accent) }
+.mini { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 10px }
+.minicard { all: unset; box-sizing: border-box; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; cursor: pointer; background: var(--surface); font-size: 12.5px; min-width: 0 }
+.minicard b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap } .minicard .chips { display: flex; gap: 4px; flex-wrap: wrap }
+.minicard .tagon { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--fg-3) }
+.minicard.on { border-color: color-mix(in srgb, var(--gain) 45%, var(--line)) } .minicard.on .tagon { background: var(--gain-weak); color: var(--gain) }
+.minicard:focus-visible { outline: 2px solid var(--accent) } .minicard:disabled { cursor: default }
+.histlist { display: grid; gap: 6px } .hrow { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px }
+.hrow summary { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; cursor: pointer; font-size: 13px }
+.kchip { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 5px; background: var(--surface-2) }
+.kchip.k-error { background: var(--loss-weak); color: var(--loss) } .kchip.k-pnl { background: var(--gain-weak); color: var(--gain) } .kchip.k-eod { background: var(--accent-weak); color: var(--accent) }
+.stepcard { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--surface-2); min-width: 0 }
+.stepcard .steps { margin-top: 8px }
+code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px }
+.stepcard code { background: var(--surface) }
+.routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 14px }
+.routes > div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px } .routes p { margin: 4px 0 0; color: var(--fg-2) }
+.foundlist > div { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap }
+.chanrow { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap }
+.avatar { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font-weight: 700; flex: none }
+.scopegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 12px; padding: 8px 0; font-size: 12.5px }
+.scopegrid label { display: flex; gap: 6px; align-items: center; min-width: 0 }
+footer { max-width: 1240px; margin: 0 auto; padding: 0 16px 40px; font-size: 12px; color: var(--fg-3) }
+@media (max-width: 1380px) { .sync { display: none } }
+@media (max-width: 640px) { .sync { display: none } .kpi .v { font-size: 18px } .top-in { gap: 10px } .nav a { padding: 5px 9px } .srcseg button { padding: 4px 9px } }
+@media (prefers-reduced-motion: no-preference) { .view { animation: in .25s ease both } @keyframes in { from { opacity: .4; transform: translateY(4px) } } }
+</style>
+
+<header class="top"><div class="top-in">
+  <a class="brand" href="#overview" aria-label="AlgoLens home">
+    <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="11" cy="11" r="8.5" fill="none" stroke="var(--accent)" stroke-width="2.4"/><path d="M6 13.5 9 10l2.5 2.5L16 7.5" fill="none" stroke="var(--fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m17.2 17.2 6 6" stroke="var(--accent)" stroke-width="2.6" stroke-linecap="round"/></svg>
+    AlgoLens</a>
+  <nav class="nav" aria-label="Main">
+    <a href="#dashboard" data-v="dashboard">Dashboard</a>
+    <a href="#monitor" data-v="monitor">Monitor</a>
+    <a href="#overview" data-v="overview">Performance</a>
+    <a href="#compare" data-v="compare">Compare</a>
+    <a href="#portfolio" data-v="portfolio">Portfolio</a>
+    <a href="#alerts" data-v="alerts">Alerts</a>
+    <a href="#settings" data-v="settings">Settings</a>
+  </nav>
+  <div class="seg srcseg" role="group" aria-label="Which strategies" id="srcSeg"></div>
+  <div class="sync"><span class="dot" id="syncDot"></span><span id="syncTxt"></span></div>
+</div></header>
+
+<main id="app"></main>
+<footer>Figures are mark-to-market P&amp;L from each strategy's Tradetron deployment, at multiplier 1, before taxes and fees. Past performance does not indicate future results. Not investment advice.</footer>
+
+<script>/*ENGINE*/</script>
+<script>
+const META = /*META*/;
+const EQ = /*EQ*/;
+const SYNCED = "/*SYNCED*/";
+let SYNC = /*SYNC*/;
+let LIVE = /*LIVE*/;
+let INTRADAY = /*INTRADAY*/;
+const CONFIG = /*CONFIG*/;
+</script>
+<script>
+(() => {
+const A = window.AlgoLens;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const COLORS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)'];
+
+// ---------- formatting ----------
+const inr = (v, d = 0) => (v < 0 ? '−' : '') + '₹' + Math.abs(v).toLocaleString('en-IN', { maximumFractionDigits: d });
+function inrC(v) { // compact Indian units
+  const a = Math.abs(v), s = v < 0 ? '−' : '';
+  if (a >= 1e7) return s + '₹' + (a / 1e7).toFixed(2) + ' Cr';
+  if (a >= 1e5) return s + '₹' + (a / 1e5).toFixed(2) + ' L';
+  if (a >= 1e3) return s + '₹' + (a / 1e3).toFixed(1) + 'K';
+  return s + '₹' + Math.round(a);
+}
+const pct = (v, d = 1) => v == null || !isFinite(v) ? '—' : (v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%';
+const sgnCls = (v) => v > 0 ? 'gain' : v < 0 ? 'loss' : '';
+const fdate = (s) => { if (!s) return '—'; const [y, m, d] = s.split('-'); return `${+d} ${MON[m - 1]} ${y}`; };
+const fnum = (v, d = 2) => v == null || !isFinite(v) ? '—' : v.toFixed(d);
+function statusPill(s) { const k = /live/i.test(s) ? 'live' : /paus/i.test(s) ? 'paused' : 'active'; return `<span class="pill ${k}">${esc(s)}</span>`; }
+
+// ---------- data ----------
+let pref = {}; try { pref = JSON.parse(localStorage.getItem('algolens') || '{}'); } catch (e) {}
+const save = () => { try { localStorage.setItem('algolens', JSON.stringify(pref)); } catch (e) {} };
+const srcOf = (x) => x.source || 'shared';
+const ALL = META.filter((m) => EQ[m.id] && EQ[m.id].length).map((m, i) => ({ ...m, source: srcOf(m), series: EQ[m.id], r: A.analyze(EQ[m.id], m.cap), idx: i }));
+const byId = Object.fromEntries(ALL.map((s) => [s.id, s]));
+let S = ALL;
+const srcMatch = (x) => (pref.src || 'all') === 'all' || srcOf(x) === pref.src;
+function applySource() { S = ALL.filter(srcMatch); }
+function drawSrcSeg() {
+  const pool = LIVE.items.length ? LIVE.items : ALL;
+  const n = { all: pool.length, own: pool.filter((x) => srcOf(x) === 'own').length, shared: pool.filter((x) => srcOf(x) === 'shared').length };
+  $('#srcSeg').innerHTML = [['all', 'All'], ['own', 'Mine'], ['shared', 'Shared']].map(([k, t]) => `<button data-src="${k}" aria-pressed="${(pref.src || 'all') === k}">${t}<span class="cnt">${n[k]}</span></button>`).join('');
+}
+const hm = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) : '';
+function drawSyncTxt() {
+  const bad = SYNC && SYNC.ok === false;
+  $('#syncDot').style.background = bad ? 'var(--loss)' : 'var(--gain)';
+  $('#syncTxt').textContent = bad ? (SYNC.authExpired ? 'Tradetron session expired' : 'Last sync failed') : (LIVE.fetchedAt ? 'Live ' + hm(LIVE.fetchedAt) + ' · ' : '') + 'History to ' + fdate(SYNCED);
+}
+applySource(); drawSrcSeg(); drawSyncTxt();
+$('#srcSeg').addEventListener('click', (e) => { const b = e.target.closest('button[data-src]'); if (!b) return; pref.src = b.dataset.src; save(); applySource(); drawSrcSeg(); route(true); });
+
+// ---------- charts (SVG) ----------
+function scale(d0, d1, r0, r1) { const k = d1 === d0 ? 0 : (r1 - r0) / (d1 - d0); return (v) => r0 + (v - d0) * k; }
+function niceTicks(min, max, n = 5) {
+  const span = max - min || Math.abs(max) || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= step0);
+  const t = []; for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-9; v += step) t.push(+v.toFixed(10));
+  return t;
+}
+let uid = 0;
+/* lines: [{values:[...], color, fill?}] over shared x labels (dates) */
+function lineChart({ dates, lines, h = 260, fmt = inrC, area = true, zero = true, xfmt = null, tipfmt = null }) {
+  const W = 760, H = h, L = 62, R = 14, T = 12, B = 26, id = 'g' + (++uid);
+  const all = lines.flatMap((l) => l.values.filter((v) => v != null));
+  let lo = Math.min(...all), hi = Math.max(...all); if (zero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  const pad = (hi - lo) * 0.06 || 1; lo -= pad * (lo < 0 ? 1 : 0); hi += pad;
+  const ticks = niceTicks(lo, hi, 4); lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+  const x = scale(0, dates.length - 1, L, W - R), y = scale(lo, hi, H - B, T);
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" data-chart="${id}">`;
+  ticks.forEach((t) => { s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 8}" y="${y(t) + 3.5}" text-anchor="end">${fmt(t)}</text>`; });
+  if (zero && lo < 0) s += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
+  // x ticks: ~6 labels
+  const nx = Math.min(6, dates.length);
+  for (let k = 0; k < nx; k++) { const i = Math.round(k * (dates.length - 1) / Math.max(1, nx - 1)); const d = dates[i]; s += `<text x="${x(i)}" y="${H - 8}" text-anchor="${k === 0 ? 'start' : k === nx - 1 ? 'end' : 'middle'}">${xfmt ? xfmt(d) : MON[+d.slice(5, 7) - 1] + ' ' + d.slice(2, 4)}</text>`; }
+  lines.forEach((l, li) => {
+    const pts = l.values.map((v, i) => v == null ? null : [x(i), y(v)]);
+    const segs = pts.filter(Boolean);
+    const p = segs.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join('');
+    if (area && lines.length === 1 && segs.length) {
+      const base = y(Math.max(lo, 0));
+      s += `<defs><linearGradient id="${id}a" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${l.color}" stop-opacity="0.22"/><stop offset="1" stop-color="${l.color}" stop-opacity="0"/></linearGradient></defs>`;
+      s += `<path d="${p}L${segs[segs.length - 1][0]} ${base}L${segs[0][0]} ${base}Z" fill="url(#${id}a)"/>`;
+    }
+    s += `<path d="${p}" fill="none" stroke="${l.color}" stroke-width="${lines.length > 1 ? 1.7 : 2}" stroke-linejoin="round"/>`;
+    const lp = segs[segs.length - 1]; if (lp) s += `<circle cx="${lp[0]}" cy="${lp[1]}" r="3.5" fill="${l.color}" stroke="var(--surface)" stroke-width="2"/>`;
+  });
+  s += `<line class="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--fg-3)" stroke-dasharray="3 3" visibility="hidden"/>`;
+  s += `<rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" class="hit"/></svg>`;
+  return { html: `<div class="chartbox">${s}<div class="tip" hidden></div></div>`, bind(root) {
+    const box = root.querySelector(`[data-chart="${id}"]`).parentNode, svg = box.querySelector('svg'), tip = box.querySelector('.tip'), cross = svg.querySelector('.cross');
+    const move = (ev) => {
+      const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * W;
+      const i = Math.max(0, Math.min(dates.length - 1, Math.round((px - L) / (W - L - R) * (dates.length - 1))));
+      cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('visibility', 'visible');
+      tip.hidden = false; tip.style.left = (x(i) / W * 100) + '%'; tip.style.top = (T / H * 100 + 4) + '%';
+      tip.innerHTML = (tipfmt ? tipfmt(dates[i]) : fdate(dates[i])) + lines.map((l) => l.values[i] == null ? '' : `<br><span style="color:${l.color}">●</span> ${l.name ? esc(l.name.slice(0, 22)) + ' ' : ''}${fmt(l.values[i])}`).join('');
+    };
+    svg.addEventListener('pointermove', move); svg.addEventListener('pointerleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); });
+  } };
+}
+function sparkline(vals, w = 110, h = 30) {
+  const step = Math.max(1, Math.floor(vals.length / 80)), v = vals.filter((_, i) => i % step === 0 || i === vals.length - 1);
+  const lo = Math.min(...v, 0), hi = Math.max(...v), x = scale(0, v.length - 1, 1, w - 4), y = scale(lo, hi, h - 3, 3);
+  const p = v.map((q, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(q).toFixed(1)).join('');
+  const c = v[v.length - 1] >= 0 ? 'var(--gain)' : 'var(--loss)';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${p}L${x(v.length - 1)} ${h - 1}L1 ${h - 1}Z" fill="${c}" opacity=".12"/><path d="${p}" fill="none" stroke="${c}" stroke-width="1.5"/><circle cx="${x(v.length - 1)}" cy="${y(v[v.length - 1])}" r="2.4" fill="${c}"/></svg>`;
+}
+function barChart(items, { h = 230, fmt = inrC, W = 440, rotate = false } = {}) { // items [{label, value}]
+  const H = h, L = 62, R = 10, T = 18, B = rotate ? 92 : 26;
+  const vals = items.map((i) => i.value); let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const ticks = niceTicks(lo, hi, 4); lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+  const y = scale(lo, hi, H - B, T), bw = (W - L - R) / items.length;
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  ticks.forEach((t) => { s += `<line class="${t === 0 ? 'zero' : 'grid'}" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 8}" y="${y(t) + 3.5}" text-anchor="end">${fmt(t)}</text>`; });
+  items.forEach((it, i) => {
+    const x0 = L + i * bw + bw * 0.18, w = bw * 0.64, y0 = y(Math.max(0, it.value)), hh = Math.abs(y(it.value) - y(0));
+    const c = it.value >= 0 ? 'var(--gain)' : 'var(--loss)';
+    s += `<rect x="${x0}" y="${y0}" width="${w}" height="${Math.max(1, hh)}" rx="3" fill="${c}" opacity=".85"><title>${esc(it.label)}: ${fmt(it.value)}</title></rect>`;
+    s += rotate ? `<text transform="translate(${x0 + w / 2} ${H - B + 12}) rotate(-40)" text-anchor="end">${esc(it.label.length > 16 ? it.label.slice(0, 15) + '…' : it.label)}</text>` : `<text x="${x0 + w / 2}" y="${H - 8}" text-anchor="middle">${esc(it.label)}</text>`;
+    s += `<text x="${x0 + w / 2}" y="${it.value >= 0 ? y0 - 5 : y0 + hh + 12}" text-anchor="middle" style="fill:var(--fg-2)">${fmt(it.value)}</text>`;
+  });
+  return s + '</svg>';
+}
+
+// ---------- slicing ----------
+const RANGES = { '1M': 31, '3M': 92, '6M': 183, '1Y': 365, 'All': 0 };
+function slice(series, key) {
+  if (!RANGES[key]) return series;
+  const last = new Date(series[series.length - 1][0] + 'T00:00:00Z'), cut = new Date(last - RANGES[key] * 864e5).toISOString().slice(0, 10);
+  let base = 0, out = [];
+  for (const r of series) { if (r[0] <= cut) base = r[1]; else out.push([r[0], r[1] - base]); }
+  return out.length ? out : series;
+}
+
+// ---------- views ----------
+const views = {};
+let sortKey = pref.sort || 'sharpe', sortDir = pref.dir || -1, filt = { q: '', ex: 'All', st: 'All' };
+
+// ---------- shared helpers for live pages ----------
+const SERVER = !!(CONFIG && CONFIG.server);
+let SETTINGS = (CONFIG && CONFIG.settings) || { names: {}, hidden: [], perStrategy: {}, alerts: {}, channels: [], telegram: {} };
+async function api(path, body) {
+  if (!SERVER) throw new Error('Settings can only be changed in the AlgoLens app running on your computer.');
+  const r = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Something went wrong (' + r.status + ').');
+  return j;
+}
+function toast(msg, bad) {
+  let t = $('#toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = msg; t.className = bad ? 'bad' : ''; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 3500);
+}
+async function saveSettings(patch, okMsg) {
+  try { SETTINGS = await api('api/settings', patch); if (okMsg) toast(okMsg); return true; } catch (e) { toast(e.message, true); return false; }
+}
+async function copyText(text, label = 'Copied') {
+  try { await navigator.clipboard.writeText(text); toast(label); } catch (e) { toast('Copy failed. Select the text and copy it instead.', true); }
+}
+const exChips = (ex) => String(ex || '').split(/[,\s]+/).filter(Boolean).map((x) => `<span class="xchip">${esc(x)}</span>`).join('');
+const styleChip = (s) => `<span class="schip ${s === 'Positional' ? 'pos' : ''}">${esc(s || 'Intraday')}</span>`;
+const pctPill = (v) => `<span class="ppill ${v > 0 ? 'g' : v < 0 ? 'l' : ''}">${pct(v, 2)}</span>`;
+const sgnInr = (v) => (v > 0 ? '+' : '') + inr(v);
+function ddBar(now, max) {
+  const w = Math.min(100, max ? now / max * 100 : 0), c = w > 66 ? 'var(--loss)' : w > 33 ? 'var(--warn)' : 'var(--gain)';
+  return `<div class="ddbar" title="Drawdown now ${pct(now, 1)} of capital+peak · worst ever ${pct(max, 1)}"><span style="width:${w}%;background:${c}"></span></div><div class="ddtxt">${now.toFixed(1)}% / ${max.toFixed(1)}%</div>`;
+}
+const shortCode = (c) => c ? c.slice(0, 8) + '…' : '';
+const tdLink = (id) => `https://tradetron.tech/deployed/view/${id}`;
+function instr(p) { // OPTIDX_SENSEX_01OCT2026_PE_71500 -> SENSEX 01 Oct 26 71500 PE
+  const m = /^[A-Z]+_(.+?)_(\d{2})([A-Z]{3})(\d{4})_(CE|PE|FF|XX)?_?([\d.]+)?$/.exec(p.i || '');
+  if (!m) return esc((p.i || '').replace(/_/g, ' '));
+  const mon = m[3][0] + m[3].slice(1).toLowerCase();
+  return `${esc(m[1])} <span class="faint">${m[2]} ${mon} ${m[4].slice(2)}</span>${m[6] ? ' ' + m[6] : ''}${m[5] === 'CE' || m[5] === 'PE' ? ' ' + m[5] : m[5] === 'FF' ? ' FUT' : ''}`;
+}
+const openMtm = (d) => (d.positions || []).filter((p) => p.q).reduce((a, p) => a + (p.pnl || 0), 0);
+const booked = (d) => (d.positions || []).filter((p) => !p.q).reduce((a, p) => a + (p.pnl || 0), 0);
+function posTable(d) {
+  const ps = [...(d.positions || [])].sort((a, b) => (b.q !== 0) - (a.q !== 0));
+  if (!ps.length) return '<p class="muted" style="margin:8px 0 0">No positions in the current counter.</p>';
+  return `<div style="overflow-x:auto"><table class="postable"><thead><tr><th>Instrument</th><th class="n">Qty</th><th class="n">Avg price</th><th class="n">LTP</th><th class="n">P&amp;L</th></tr></thead><tbody>
+  ${ps.map((p) => `<tr class="${p.q ? '' : 'closed'}"><td>${instr(p)}${p.q ? '' : ' <span class="faint">closed</span>'}</td><td class="n">${p.q}</td><td class="n">${fnum(p.avg)}</td><td class="n">${fnum(p.ltp)}</td><td class="n ${sgnCls(p.pnl)}">${inr(p.pnl)}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+function liveCounterPanel(id) {
+  const d = LIVE.items.find((x) => x.id === id); if (!d) return '';
+  return `<section class="panel"><div class="panel-h"><h2>Today · counter #${d.ctr}</h2><span class="updated">Live ${hm(LIVE.fetchedAt)}</span></div>
+    <div class="kpis" style="margin-bottom:14px">
+      <div class="kpi"><div class="eyebrow">Today</div><div class="v ${sgnCls(d.today)}">${sgnInr(d.today)}</div><div class="s">${pct(d.todayPct, 2)} of capital · ${d.style}</div></div>
+      <div class="kpi"><div class="eyebrow">Open / booked</div><div class="v" style="font-size:16px"><span class="${sgnCls(openMtm(d))}">${inrC(openMtm(d))}</span> / <span class="${sgnCls(booked(d))}">${inrC(booked(d))}</span></div><div class="s">${d.open} open of ${d.total} positions</div></div>
+      <div class="kpi"><div class="eyebrow">Previous counters</div><div class="v" style="font-size:14px;line-height:1.7">${(d.counters || []).slice(1, 6).map(([c, v]) => `<span class="${sgnCls(v)}">${inrC(v)}</span>`).join(' · ') || '—'}</div><div class="s">#${d.ctr - 1} back to #${Math.max(1, d.ctr - 5)}</div></div>
+    </div>${posTable(d)}</section>`;
+}
+const intradayTime = (t) => { const [h, m] = t.split(':').map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}`; };
+
+// ---------- Dashboard (Strategy Dashboard) ----------
+const DCOLS = [
+  { k: 'cap', t: 'Capital', n: 1, on: 1, v: (d) => d.cap, td: (d) => `<td class="n">${inrC(d.cap)}</td>`, foot: (r) => `<td class="n"><b>${inrC(r.cap)}</b></td>` },
+  { k: 'today', t: 'Today', n: 1, on: 1, v: (d) => d.today, td: (d) => `<td class="n"><b class="${sgnCls(d.today)}">${sgnInr(d.today)}</b><div class="sub" style="justify-content:flex-end">${pctPill(d.todayPct)}</div></td>`, foot: (r) => `<td class="n"><b class="${sgnCls(r.today)}">${sgnInr(r.today)}</b><div class="sub" style="justify-content:flex-end">${pctPill(r.today / r.cap * 100)}</div></td>` },
+  { k: 'all', t: 'All-time', n: 1, on: 1, v: (d) => d.allTime, td: (d) => `<td class="n"><b class="${sgnCls(d.allTime)}">${sgnInr(d.allTime)}</b><div class="sub" style="justify-content:flex-end">${pctPill(d.allTimePct)}</div></td>`, foot: (r) => `<td class="n"><b class="${sgnCls(r.all)}">${sgnInr(r.all)}</b><div class="sub" style="justify-content:flex-end">${pctPill(r.all / r.cap * 100)}</div></td>` },
+  { k: 'dd', t: 'Drawdown now / max', on: 1, v: (d) => d.ddNowPct, td: (d) => `<td>${ddBar(d.ddNowPct, d.ddMaxPct)}</td>`, foot: (r) => `<td>${ddBar(r.ddNow, r.ddMax)}</td>` },
+  { k: 'status', t: 'Status', on: 1, td: (d) => `<td>${statusPill(d.status)}</td>` },
+  { k: 'style', t: 'Type', on: 1, td: (d) => `<td>${styleChip(d.style)}</td>` },
+  { k: 'pos', t: 'Positions', on: 0, v: (d) => d.open, td: (d) => `<td>${d.open ? `<b>${d.open}</b> open` : '<span class="faint">none open</span>'}<div class="sub">${d.total} in counter</div></td>` },
+  { k: 'counter', t: 'Counter', on: 0, v: (d) => d.ctr, td: (d) => `<td class="mono">#${d.ctr}<div class="sub">prev <span class="${sgnCls(d.lastPnl)}">${inrC(d.lastPnl)}</span></div></td>` },
+  { k: 'openmtm', t: 'Open MTM', n: 1, on: 0, v: openMtm, td: (d) => `<td class="n ${sgnCls(openMtm(d))}">${inr(openMtm(d))}</td>` },
+  { k: 'booked', t: 'Booked', n: 1, on: 0, v: booked, td: (d) => `<td class="n ${sgnCls(booked(d))}">${inr(booked(d))}</td>` },
+  { k: 'broker', t: 'Broker / SID', on: 0, td: (d) => `<td>${esc(d.broker)}<div class="sub mono">SID ${d.id}</div></td>` },
+  { k: 'trend', t: 'Trend', on: 0, td: (d) => `<td>${byId[d.id] ? sparkline(byId[d.id].r.cum, 96, 28) : '<span class="faint">no history</span>'}</td>` },
+];
+const STATUS_GROUPS = [['all', 'All'], ['Live-Entered', 'In position'], ['Active', 'Waiting'], ['Paused', 'Paused'], ['Exited', 'Exited'], ['Error', 'Error']];
+let dashOpen = new Set(), dashQ = '', dashStatus = 'all', trendPick = 'total', rankAll = false;
+
+views.dashboard = (app) => {
+  const cols = { ...Object.fromEntries(DCOLS.map((c) => [c.k, !!c.on])), ...(pref.cols2 || {}) };
+  let sortK = pref.dsort || 'today-';
+  const today = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+  if (!LIVE.items.length) {
+    app.innerHTML = `<section class="head view"><div><div class="eyebrow">Live</div><h1>Strategy dashboard</h1><p>No live data yet. Save your Tradetron session on the <a href="#settings">Settings</a> page; the dashboard then refreshes every ${LIVE.intervalMin || 15} minutes while AlgoLens is running.</p></div></section>`;
+    return;
+  }
+  app.innerHTML = `
+  <section class="head view"><div><div class="eyebrow">Live P&amp;L, capital and performance · ${fdate(today)}</div><h1>Strategy dashboard</h1></div>
+    <div class="controls"><span class="updated"><span class="dot"></span>Updated ${hm(LIVE.fetchedAt)} · every ${LIVE.intervalMin || 15} min</span>${SERVER ? '<button class="btn" id="refreshNow">Refresh now</button>' : ''}</div></section>
+  <nav class="goto" aria-label="Go to section"><span class="eyebrow">Go to</span><a href="#trendSec" data-jump>Intraday trend</a><a href="#breakSec" data-jump>Strategy breakdown</a><a href="#rankSec" data-jump>Top performers</a></nav>
+  <section class="kpis" id="dk"></section>
+  <details class="panel" id="trendSec" ${pref.trendClosed ? '' : 'open'}><summary><h2>Intraday P&amp;L trend</h2><span class="faint" style="font-size:12px">Recorded at every refresh during market hours</span></summary>
+    <div class="controls" style="margin:12px 0 4px"><select id="trendPick" class="field" aria-label="Series"></select></div><div id="trend"></div></details>
+  <section id="breakSec">
+    <div class="panel-h" style="margin-top:4px"><div><h2>Strategy breakdown</h2><p class="faint" style="margin:2px 0 0;font-size:12.5px">Click a row for positions. The copy button copies a strategy's share code.</p></div>
+      <div class="controls">
+        <input id="dq" class="field" type="search" placeholder="Filter name, creator, broker or SID" aria-label="Filter" value="${esc(dashQ)}" style="width:min(260px,100%)">
+        <select id="dsort" class="field" aria-label="Sort">${[['today-', 'Today, high to low'], ['today+', 'Today, low to high'], ['all-', 'All-time, high to low'], ['cap-', 'Capital, high to low'], ['dd-', 'Deepest drawdown now'], ['order', 'Tradetron order'], ['name', 'Name']].map(([k, t]) => `<option value="${k}" ${k === sortK ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <button class="btn" id="dexp">${dashOpen.size ? 'Collapse all' : 'Expand all'}</button>
+        <div class="colpick"><button class="btn" id="colbtn" aria-expanded="false">Columns</button>
+          <div class="colpick-menu" id="colmenu" hidden>${DCOLS.map((c) => `<label><input type="checkbox" data-col="${c.k}" ${cols[c.k] ? 'checked' : ''}>${c.t}</label>`).join('')}</div></div>
+      </div></div>
+    <div class="statchips" id="dstat"></div>
+    <div class="tablewrap" style="margin-top:12px"><table class="dash" id="dt"></table></div>
+  </section>
+  <section class="panel" id="rankSec"><div class="panel-h"><div><h2>Top performers</h2><p class="faint" style="margin:2px 0 0;font-size:12.5px">Ranked by average monthly return on capital, at the deployed multiplier</p></div><div class="controls"><span class="ppill g" id="pfavg"></span><button class="btn" id="rankAll"></button></div></div><div id="rank"></div></section>`;
+  const visible = () => LIVE.items.filter(srcMatch);
+  function drawTrend() {
+    const snaps = (INTRADAY && INTRADAY.snaps) || [];
+    const items = visible();
+    $('#trendPick').innerHTML = `<option value="total">Portfolio total (${items.length})</option>` + items.map((d) => `<option value="${d.id}" ${String(trendPick) === String(d.id) ? 'selected' : ''}>${esc(d.name)}</option>`).join('');
+    if (snaps.length < 2) { $('#trend').innerHTML = `<p class="muted">The curve builds up during the day, one point per refresh${snaps.length ? ' (1 so far)' : ''}. It starts at the first refresh after 9:00 am.</p>`; return; }
+    const ids = new Set(items.map((d) => d.id));
+    const vals = snaps.map((s) => trendPick === 'total' ? Object.entries(s.byId || {}).reduce((a, [id, v]) => a + (ids.has(+id) ? v : 0), 0) : (s.byId || {})[trendPick] ?? null);
+    const c = lineChart({ dates: snaps.map((s) => s.t), lines: [{ values: vals, color: vals.at(-1) >= 0 ? 'var(--gain)' : 'var(--loss)' }], h: 230, xfmt: intradayTime, tipfmt: intradayTime });
+    $('#trend').innerHTML = c.html; c.bind($('#trend'));
+  }
+  function drawRank() {
+    const rows = visible().filter((d) => d.avgMonthlyRoiPct != null).sort((a, b) => b.avgMonthlyRoiPct - a.avgMonthlyRoiPct);
+    const capSum = rows.reduce((a, d) => a + d.cap, 0);
+    const avg = capSum ? rows.reduce((a, d) => a + d.avgMonthlyRoiPct * d.cap, 0) / capSum : 0;
+    $('#pfavg').textContent = `Portfolio avg ${pct(avg, 2)} / month`;
+    const shown = rankAll ? rows : rows.slice(0, 15);
+    $('#rankAll').hidden = rows.length <= 15; $('#rankAll').textContent = rankAll ? 'Show top 15' : `Show all ${rows.length}`;
+    $('#rank').innerHTML = shown.length ? `<div style="overflow-x:auto">${barChart(shown.map((d) => ({ label: d.name, value: d.avgMonthlyRoiPct })), { W: Math.max(760, shown.length * 46), h: 300, fmt: (v) => v.toFixed(1) + '%', rotate: true })}</div>` : '<p class="muted">Rankings appear once performance history has been collected.</p>';
+  }
+  function draw() {
+    const items = visible();
+    const tot = { cap: items.reduce((a, d) => a + d.cap, 0), today: items.reduce((a, d) => a + d.today, 0), all: items.reduce((a, d) => a + d.allTime, 0) };
+    tot.ddNow = tot.cap ? items.reduce((a, d) => a + d.ddNowPct * d.cap, 0) / tot.cap : 0;
+    tot.ddMax = tot.cap ? items.reduce((a, d) => a + d.ddMaxPct * d.cap, 0) / tot.cap : 0;
+    const openPos = items.reduce((a, d) => a + (d.positions || []).filter((p) => p.q).length, 0), inPos = items.filter((d) => d.open > 0).length;
+    const up = items.filter((d) => d.today > 0).length, down = items.filter((d) => d.today < 0).length;
+    $('#dk').innerHTML = `
+      <div class="kpi"><div class="eyebrow">Deployed capital</div><div class="v">${inrC(tot.cap)}</div><div class="s">across ${items.length} strategies</div></div>
+      <div class="kpi"><div class="eyebrow">Today</div><div class="v ${sgnCls(tot.today)}">${sgnInr(tot.today)}</div><div class="s">${pct(tot.today / Math.max(1, tot.cap) * 100, 2)} · ${up} up, ${down} down</div></div>
+      <div class="kpi"><div class="eyebrow">All-time</div><div class="v ${sgnCls(tot.all)}">${inrC(tot.all)}</div><div class="s">${pct(tot.all / Math.max(1, tot.cap) * 100, 1)} of capital</div></div>
+      <div class="kpi"><div class="eyebrow">Open positions</div><div class="v">${openPos}</div><div class="s">${inPos} strategies in a position</div></div>`;
+    const cnt = (k) => k === 'all' ? items.length : items.filter((d) => k === 'Error' ? /error|block/i.test(d.status) : d.status === k).length;
+    $('#dstat').innerHTML = STATUS_GROUPS.filter(([k]) => k === 'all' || cnt(k)).map(([k, t]) => `<button data-st="${k}" aria-pressed="${dashStatus === k}">${t} <span class="mono">${cnt(k)}</span></button>`).join('');
+    const q = dashQ.toLowerCase();
+    let rows = items.filter((d) => (dashStatus === 'all' || (dashStatus === 'Error' ? /error|block/i.test(d.status) : d.status === dashStatus)) && (!q || `${d.name} ${d.tdName} ${d.creator} ${d.broker} ${d.id}`.toLowerCase().includes(q)));
+    const col = DCOLS.find((c) => c.k === sortK.replace(/[-+]$/, ''));
+    if (sortK === 'name') rows.sort((a, b) => a.name.localeCompare(b.name));
+    else if (col && col.v) { const dir = sortK.endsWith('+') ? 1 : -1; rows.sort((a, b) => ((col.v(a) ?? -Infinity) - (col.v(b) ?? -Infinity)) * dir); }
+    const shown = DCOLS.filter((c) => cols[c.k]);
+    $('#dt').innerHTML = `<thead><tr><th>Strategy</th>${shown.map((c) => `<th class="${c.n ? 'n' : ''}">${c.t}</th>`).join('')}</tr></thead><tbody>${rows.map((d) => `
+      <tr class="main click ${dashOpen.has(d.id) ? 'open' : ''}" data-id="${d.id}" tabindex="0" aria-expanded="${dashOpen.has(d.id)}">
+        <td style="white-space:normal;min-width:230px"><div style="display:flex;gap:6px;align-items:baseline"><span class="chev">▸</span><span class="sname" style="white-space:normal">${esc(d.name)}</span><span class="mchip">${d.mult}x</span></div>
+          <div class="sub">${esc(d.broker)} · ${exChips(d.ex)}<span class="src ${srcOf(d)}">${srcOf(d) === 'own' ? 'Mine' : 'Shared'}</span></div>
+          <div class="sub">Since ${fdate(d.on)} (${d.sinceDays} days)${d.shareCode ? ` · <button class="copy" data-code="${esc(d.shareCode)}" title="Copy share code">Copy code</button>` : ''}</div></td>
+        ${shown.map((c) => c.td(d)).join('')}</tr>
+      ${dashOpen.has(d.id) ? `<tr class="posrow"><td colspan="${shown.length + 1}"><div class="links" style="margin:2px 0 8px">${byId[d.id] ? `<a href="#s${d.id}">Full performance report</a>` : ''}<a href="${tdLink(d.id)}" target="_blank" rel="noopener">Open in Tradetron ↗</a><span class="faint" style="font-size:12px">Counter #${d.ctr} · ${d.open} open of ${d.total} positions · SID ${d.id}</span></div>${posTable(d)}</td></tr>` : ''}`).join('') || `<tr><td colspan="${shown.length + 1}" class="muted" style="padding:28px;text-align:center">No strategies match.</td></tr>`}</tbody>
+      ${rows.length ? `<tfoot><tr><td><b>Total</b><div class="sub">${items.length} strategies</div></td>${shown.map((c) => c.foot ? c.foot(tot) : '<td></td>').join('')}</tr></tfoot>` : ''}`;
+    $('#dexp').textContent = dashOpen.size ? 'Collapse all' : 'Expand all';
+  }
+  draw(); drawTrend(); drawRank();
+  views.dashboard.redraw = () => { draw(); drawTrend(); drawRank(); };
+  app.querySelectorAll('[data-jump]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); const t = $(a.getAttribute('href')); if (t.tagName === 'DETAILS') t.open = true; t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
+  $('#trendSec').addEventListener('toggle', (e) => { pref.trendClosed = !e.target.open; save(); });
+  $('#trendPick').addEventListener('change', (e) => { trendPick = e.target.value === 'total' ? 'total' : +e.target.value; drawTrend(); });
+  $('#rankAll').addEventListener('click', () => { rankAll = !rankAll; drawRank(); });
+  $('#dq').addEventListener('input', (e) => { dashQ = e.target.value; draw(); });
+  $('#dsort').addEventListener('change', (e) => { sortK = e.target.value; pref.dsort = sortK; save(); draw(); });
+  $('#dstat').addEventListener('click', (e) => { const b = e.target.closest('button[data-st]'); if (b) { dashStatus = b.dataset.st; draw(); } });
+  $('#dexp').addEventListener('click', () => { if (dashOpen.size) dashOpen.clear(); else visible().forEach((d) => dashOpen.add(d.id)); draw(); });
+  const toggle = (tr) => { const id = +tr.dataset.id; dashOpen.has(id) ? dashOpen.delete(id) : dashOpen.add(id); draw(); };
+  $('#dt').addEventListener('click', (e) => { const cp = e.target.closest('.copy'); if (cp) { e.stopPropagation(); return copyText(cp.dataset.code, 'Share code copied. Add it under Shared Codes in Tradetron.'); } if (e.target.closest('a')) return; const tr = e.target.closest('tr.main'); if (tr) toggle(tr); });
+  $('#dt').addEventListener('keydown', (e) => { const tr = e.target.closest('tr.main'); if (tr && e.target === tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(tr); } });
+  $('#colbtn').addEventListener('click', () => { const m = $('#colmenu'); m.hidden = !m.hidden; $('#colbtn').setAttribute('aria-expanded', !m.hidden); });
+  $('#colmenu').addEventListener('change', (e) => { const k = e.target.dataset.col; cols[k] = e.target.checked; pref.cols2 = cols; save(); draw(); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.colpick')) { const m = $('#colmenu'); if (m) m.hidden = true; } });
+  if ($('#refreshNow')) $('#refreshNow').addEventListener('click', async (e) => { e.target.disabled = true; e.target.textContent = 'Refreshing…'; try { await api('api/refresh', {}); await pollLive(true); toast('Live data refreshed'); } catch (err) { toast(err.message, true); } e.target.disabled = false; e.target.textContent = 'Refresh now'; });
+};
+
+// ---------- Monitor (strategy cards with alert toggles) ----------
+let monQ = '';
+views.monitor = (app) => {
+  const items = LIVE.items.filter(srcMatch), removed = (LIVE.removed || []).filter(srcMatch);
+  if (!items.length && !removed.length) { app.innerHTML = `<section class="head view"><div><h1>Strategies</h1><p>No live data yet. Save your Tradetron session on the <a href="#settings">Settings</a> page.</p></div></section>`; return; }
+  app.innerHTML = `
+  <section class="head view"><div><div class="eyebrow">Monitoring</div><h1>Strategies</h1><p>${items.length} strategies monitored. Switch error and P&amp;L alerts per strategy.</p></div>
+    <span class="updated">Last fetched ${hm(LIVE.fetchedAt)}</span></section>
+  <section class="kpis" id="mk"></section>
+  <div class="controls"><input id="mq" class="field" type="search" placeholder="Search strategies" aria-label="Search strategies" value="${esc(monQ)}" style="width:min(320px,100%)"></div>
+  <section class="cards" id="mc"></section>`;
+  function draw() {
+    const all = LIVE.items.filter(srcMatch);
+    const today = all.reduce((a, d) => a + d.today, 0);
+    const errOn = all.filter((d) => d.alerts.error).length, pnlOn = all.filter((d) => d.alerts.pnl).length;
+    $('#mk').innerHTML = `
+      <div class="kpi"><div class="eyebrow">Today's P&amp;L</div><div class="v ${sgnCls(today)}">${sgnInr(today)}</div><div class="s">across ${all.length} strategies</div></div>
+      <div class="kpi"><div class="eyebrow">Error alerts</div><div class="v">${errOn} <span class="faint" style="font-size:14px">/ ${all.length}</span></div><div class="s">${SETTINGS.alerts?.errors === false ? 'Turned off on the Alerts page' : 'sent the moment a strategy errors'}</div></div>
+      <div class="kpi"><div class="eyebrow">P&amp;L alerts</div><div class="v">${pnlOn} <span class="faint" style="font-size:14px">/ ${all.length}</span></div><div class="s">every ${SETTINGS.alerts?.intervalMin || 30} min in market hours</div></div>
+      <div class="kpi"><div class="eyebrow">Channels</div><div class="v">${(SETTINGS.channels || []).length}</div><div class="s">${(SETTINGS.channels || []).length ? 'receiving alerts' : '<a href="#settings">Connect Telegram</a>'}</div></div>`;
+    const q = monQ.toLowerCase();
+    const card = (d) => `<article class="scard">
+      <div class="chips">${exChips(d.ex)}${styleChip(d.style)}<span class="grow"></span><span class="mchip">${d.mult}x</span><span class="capchip">Cap ${inrC(d.cap)}</span></div>
+      <div class="faint" style="font-size:12px;margin-top:6px">${esc(d.broker)} · <span class="src ${srcOf(d)}" style="margin:0">${srcOf(d) === 'own' ? 'Mine' : 'Shared'}</span></div>
+      <h3 title="${esc(d.tdName)}">${byId[d.id] ? `<a href="#s${d.id}">${esc(d.name)}</a>` : esc(d.name)}</h3>
+      <div class="pnlbox"><div><div class="eyebrow">Today</div><div class="big ${sgnCls(d.today)}">${sgnInr(d.today)}</div></div><div style="text-align:right"><div class="eyebrow">All-time</div><div class="${sgnCls(d.allTime)} mono" style="font-weight:600">${sgnInr(d.allTime)}</div></div></div>
+      <div class="cardfoot"><div class="ids">${d.shareCode ? `<button class="copy mono" data-code="${esc(d.shareCode)}" title="Copy share code">${shortCode(d.shareCode)}</button><br>` : ''}<span class="mono faint">SID ${d.id}</span></div>
+        <label class="sw err"><input type="checkbox" data-alert="error" data-id="${d.id}" ${d.alerts.error ? 'checked' : ''} ${SERVER ? '' : 'disabled'}><span></span>Error</label>
+        <label class="sw"><input type="checkbox" data-alert="pnl" data-id="${d.id}" ${d.alerts.pnl ? 'checked' : ''} ${SERVER ? '' : 'disabled'}><span></span>P&amp;L</label></div>
+      <div class="stline">${statusPill(d.status)}<a href="${tdLink(d.id)}" target="_blank" rel="noopener" class="faint" style="font-size:12px">Tradetron ↗</a></div></article>`;
+    const rcard = (r) => `<article class="scard removed"><div class="banner">Strategy removed from your Tradetron account</div>
+      <div class="chips">${exChips(r.ex)}<span class="grow"></span><span class="capchip">Cap ${inrC(r.cap || 0)}</span></div>
+      <h3><s>${esc(r.name)}</s></h3><p class="faint" style="font-size:12px;margin:0">Last seen ${r.at ? new Date(r.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : ''} · SID ${r.id}</p></article>`;
+    $('#mc').innerHTML = [...all.filter((d) => !q || `${d.name} ${d.tdName} ${d.creator} ${d.id}`.toLowerCase().includes(q)).map(card), ...removed.filter((r) => !q || r.name.toLowerCase().includes(q)).map(rcard)].join('') || '<p class="muted">No strategies match.</p>';
+  }
+  draw();
+  views.monitor.redraw = draw;
+  $('#mq').addEventListener('input', (e) => { monQ = e.target.value; draw(); });
+  $('#mc').addEventListener('click', (e) => { const cp = e.target.closest('.copy'); if (cp) copyText(cp.dataset.code, 'Share code copied'); });
+  $('#mc').addEventListener('change', async (e) => {
+    const t = e.target.closest('input[data-alert]'); if (!t) return;
+    const id = +t.dataset.id, kind = t.dataset.alert;
+    if (await saveSettings({ perStrategy: { [id]: { [kind]: t.checked } } }, `${kind === 'pnl' ? 'P&L' : 'Error'} alerts ${t.checked ? 'on' : 'off'}`)) { const d = LIVE.items.find((x) => x.id === id); if (d) d.alerts[kind] = t.checked; draw(); }
+    else t.checked = !t.checked;
+  });
+};
+
+// ---------- Alerts (P&L alerts & digest) ----------
+function tgToHtml(text) { // render a Telegram HTML message for the preview bubble
+  return esc(text).replace(/&lt;(\/?)(b|i)&gt;/g, '<$1$2>').replace(/&lt;a href=&quot;(.*?)&quot;&gt;(.*?)&lt;\/a&gt;/g, '<a href="$1" target="_blank" rel="noopener">$2</a>').replace(/&amp;(lt|gt|amp);/g, '&$1;').replace(/\n/g, '<br>');
+}
+views.alerts = (app) => {
+  const a = { ...SETTINGS.alerts };
+  const items = LIVE.items;
+  const pnlOn = items.filter((d) => d.alerts.pnl).length;
+  const intra = items.filter((d) => d.style !== 'Positional').length, posi = items.length - intra;
+  const chans = SETTINGS.channels || [];
+  const sw = (k, label, help) => `<div class="setrow"><div><b>${label}</b><p>${help}</p></div><label class="sw big"><input type="checkbox" data-a="${k}" ${a[k] ? 'checked' : ''} ${SERVER ? '' : 'disabled'}><span></span><span class="sr">${label}</span></label></div>`;
+  app.innerHTML = `
+  <section class="head view"><div><div class="eyebrow">Telegram &amp; Discord</div><h1>P&amp;L alerts &amp; digest <span class="pill ${a.enabled ? 'live' : 'paused'}" style="vertical-align:middle;font-size:13px">${a.enabled ? 'Tracking active' : 'Paused'}</span></h1>
+    <p>Intraday P&amp;L snapshots and end-of-day summaries delivered to your channels, plus instant error alerts.</p></div>
+    <div class="controls"><a class="btn" href="#alertHist" data-jump>Alert history</a>${SERVER ? '<button class="btn primary" id="sendNow">Send an update now</button>' : ''}</div></section>
+  <section class="kpis">
+    <div class="kpi"><div class="eyebrow">P&amp;L strategies</div><div class="v">${pnlOn} <span class="faint" style="font-size:14px">/ ${items.length}</span></div><div class="meter"><span style="width:${items.length ? pnlOn / items.length * 100 : 0}%"></span></div></div>
+    <div class="kpi"><div class="eyebrow">Alert interval</div><div class="v">${a.intervalMin} min</div><div class="s">Minimum 15 min · market hours only</div></div>
+    <div class="kpi"><div class="eyebrow">Market coverage</div><div class="v" style="font-size:18px">${a.mcx ? 'NSE + MCX' : 'NSE only'}</div><div class="s">${a.mcx ? 'MCX evening session included' : 'MCX evening updates off'}</div></div>
+    <div class="kpi"><div class="eyebrow">Alert channels</div><div class="v">${chans.length}</div><div class="s">${chans.length ? chans.map((c) => esc(c.name)).join(', ') : '<a href="#settings">Connect Telegram</a>'}</div></div>
+  </section>
+  <div class="note" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><b class="eyebrow" style="color:var(--fg-2)">Strategy breakdown</b><span class="pill active">Intraday ${intra}</span><span class="pill paused">Positional ${posi}</span><span class="faint">Classified automatically from overnight positions and counters. Change it on the Settings page.</span></div>
+  <section class="grid2">
+    <div class="panel"><h2>Alert configuration &amp; schedule</h2><p class="faint" style="margin:4px 0 6px;font-size:12.5px">Changes save as you make them.</p>
+      ${sw('enabled', 'Enable P&L tracking', 'Scheduled P&L snapshots and summaries. Turn off to pause them; error alerts keep working.')}
+      ${sw('mcx', 'MCX / commodity evening', 'Keep sending P&L updates for MCX strategies from 3:30 pm to 11:30 pm.')}
+      <div class="setrow"><div><b>Alert frequency</b><p>How often a P&amp;L snapshot is sent during market hours.</p></div><select class="field" data-a="intervalMin" ${SERVER ? '' : 'disabled'}>${[15, 30, 45, 60, 90, 120].map((m) => `<option value="${m}" ${a.intervalMin === m ? 'selected' : ''}>Every ${m} min</option>`).join('')}</select></div>
+      <div class="setrow"><div><b>End-of-day summary</b><p>One summary after the close, with all-time P&amp;L per strategy.</p></div><div class="controls"><label class="sw big"><input type="checkbox" data-a="eod" ${a.eod ? 'checked' : ''} ${SERVER ? '' : 'disabled'}><span></span><span class="sr">End-of-day summary</span></label><input class="field mono" type="time" data-a="eodTime" value="${a.eodTime}" aria-label="NSE summary time" style="width:110px"><input class="field mono" type="time" data-a="mcxEodTime" value="${a.mcxEodTime}" aria-label="MCX summary time" style="width:110px" title="MCX summary time"></div></div>
+      ${sw('errors', 'Error alerts', 'Instant message when a strategy goes into Error or Blocked, is removed, or the Tradetron session expires.')}
+      <div class="setrow"><div><b>Header name</b><p>Shown at the top of every P&amp;L message.</p></div><input class="field" data-a="header" value="${esc(a.header)}" placeholder="AlgoLens" maxlength="40" style="width:180px"></div>
+      ${sw('oneX', '1x P&L (ignore multipliers)', 'Report P&L as if every strategy ran at 1x.')}
+      ${sw('dayHL', "Day's high & low", 'Add the day’s best and worst P&L with times.')}
+      <div class="setrow col"><div><b>Footer links</b><p>Up to three links at the bottom of P&amp;L messages.</p></div>
+        <div id="footLinks" style="display:grid;gap:6px;width:100%">${[0, 1, 2].map((i) => `<div class="controls"><input class="field" data-fl="${i}" data-k="label" placeholder="Label" value="${esc(a.footer?.[i]?.label || '')}" style="width:130px"><input class="field" data-fl="${i}" data-k="url" placeholder="https://…" value="${esc(a.footer?.[i]?.url || '')}" style="flex:1;min-width:160px"></div>`).join('')}</div></div>
+    </div>
+    <div class="panel"><h2>Message format studio</h2><p class="faint" style="margin:4px 0 12px;font-size:12.5px">Choose what a P&amp;L message looks like. The preview uses your live data.</p>
+      <div class="fmtpick">
+        <label class="fmt"><input type="radio" name="fmt" value="detailed" ${a.format !== 'sleek' ? 'checked' : ''}><b>Detailed</b><pre>🔹 Alpha Trend · 2x
+├ Intraday · Live-Entered
+└ 🟢 Day: +₹2,450 (+1.6%)</pre><span class="faint">Multi-line block per strategy</span></label>
+        <label class="fmt"><input type="radio" name="fmt" value="sleek" ${a.format === 'sleek' ? 'checked' : ''}><b>Sleek</b><pre>🟢 Alpha Trend: +₹2,450 (+1.6%)
+🔴 Omega: −₹1,200 (−0.4%)
+⚡ Net total: +₹1,250</pre><span class="faint">One line each; easy to read on a phone</span></label>
+      </div>
+      <div class="setrow"><div><b>Sort order</b></div><select class="field" data-a="sort"><option value="pnl" ${a.sort === 'pnl' ? 'selected' : ''}>Today's P&amp;L, high to low</option><option value="name" ${a.sort === 'name' ? 'selected' : ''}>Name</option><option value="order" ${a.sort === 'order' ? 'selected' : ''}>Tradetron order</option></select></div>
+      <div class="setrow"><div><b>Strategy names</b><p>Your aliases from Settings, or Tradetron's names.</p></div><select class="field" data-a="useAlias"><option value="true" ${a.useAlias ? 'selected' : ''}>My aliases</option><option value="false" ${!a.useAlias ? 'selected' : ''}>Tradetron names</option></select></div>
+      <div class="eyebrow" style="margin:14px 0 6px">Preview</div><div class="tgbubble" id="preview"><span class="faint">${SERVER ? 'Loading preview…' : 'Preview is available in the app on your computer.'}</span></div>
+    </div>
+  </section>
+  <section class="panel"><div class="panel-h"><div><h2>Monitored P&amp;L strategies</h2><p class="faint" style="margin:2px 0 0;font-size:12.5px">Click a card to include or leave out a strategy from P&amp;L messages.</p></div><a class="btn" href="#monitor">Open monitor</a></div>
+    <div class="mini" id="minis">${items.map((d) => `<button class="minicard ${d.alerts.pnl ? 'on' : ''}" data-id="${d.id}" ${SERVER ? '' : 'disabled'} aria-pressed="${d.alerts.pnl}"><b>${esc(d.name)}</b><span class="chips"><span class="tagon">${d.alerts.pnl ? 'P&L ON' : 'P&L OFF'}</span>${exChips(d.ex)}${styleChip(d.style)}</span>${d.shareCode ? `<span class="mono faint" style="font-size:11px">Code ${esc(d.shareCode.slice(0, 18))}…</span>` : `<span class="mono faint" style="font-size:11px">SID ${d.id}</span>`}</button>`).join('')}</div></section>
+  <section class="panel" id="alertHist"><div class="panel-h"><h2>Alert history</h2><span class="faint" style="font-size:12px">Last 300 messages</span></div><div id="hist"><p class="muted">${SERVER ? 'Loading…' : 'Available in the app on your computer.'}</p></div></section>`;
+
+  let tmr;
+  const preview = () => { if (!SERVER) return; clearTimeout(tmr); tmr = setTimeout(async () => { try { const j = await api('api/alerts/preview', { alerts: a }); $('#preview').innerHTML = tgToHtml(j.text); } catch (e) { $('#preview').textContent = e.message; } }, 250); };
+  const commit = async (patch) => { Object.assign(a, patch); preview(); await saveSettings({ alerts: patch }, 'Saved'); };
+  preview();
+  app.querySelectorAll('[data-a]').forEach((el) => el.addEventListener('change', () => {
+    const k = el.dataset.a; let v = el.type === 'checkbox' ? el.checked : el.value;
+    if (k === 'intervalMin') v = +v; if (k === 'useAlias') v = v === 'true';
+    commit({ [k]: v });
+  }));
+  app.querySelectorAll('input[name=fmt]').forEach((r) => r.addEventListener('change', () => commit({ format: r.value })));
+  $('#footLinks').addEventListener('change', () => {
+    const f = [0, 1, 2].map((i) => ({ label: app.querySelector(`[data-fl="${i}"][data-k=label]`).value.trim(), url: app.querySelector(`[data-fl="${i}"][data-k=url]`).value.trim() })).filter((l) => l.label || l.url);
+    if (f.some((l) => !l.label || !/^https?:\/\//.test(l.url))) return toast('Each footer link needs a label and a web address starting with https://', true);
+    commit({ footer: f });
+  });
+  $('#minis').addEventListener('click', async (e) => {
+    const b = e.target.closest('.minicard'); if (!b) return;
+    const id = +b.dataset.id, d = LIVE.items.find((x) => x.id === id), on = !d.alerts.pnl;
+    if (await saveSettings({ perStrategy: { [id]: { pnl: on } } }, `P&L alerts ${on ? 'on' : 'off'} for ${d.name}`)) { d.alerts.pnl = on; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.querySelector('.tagon').textContent = on ? 'P&L ON' : 'P&L OFF'; preview(); }
+  });
+  app.querySelectorAll('[data-jump]').forEach((el) => el.addEventListener('click', (e) => { e.preventDefault(); $('#alertHist').scrollIntoView({ behavior: 'smooth' }); }));
+  if ($('#sendNow')) $('#sendNow').addEventListener('click', async (e) => {
+    if (!chans.length) return toast('Connect a Telegram channel on the Settings page first.', true);
+    e.target.disabled = true;
+    try { const j = await api('api/alerts/send-now', {}); const bad = j.results.filter((r) => !r.ok); toast(bad.length ? `Failed for ${bad.map((r) => r.ch + ': ' + r.error).join('; ')}` : `Sent to ${j.results.length} channel(s)`, bad.length); loadHist(); } catch (err) { toast(err.message, true); }
+    e.target.disabled = false;
+  });
+  async function loadHist() {
+    if (!SERVER) return;
+    try {
+      const h = await api('api/alerts/history');
+      $('#hist').innerHTML = h.length ? `<div class="histlist">${h.slice(0, 60).map((x) => `<details class="hrow"><summary><span class="mono faint">${new Date(x.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span><span class="kchip k-${x.kind}">${{ pnl: 'P&L', eod: 'End of day', error: 'Error' }[x.kind] || x.kind}</span><span>${esc(x.channel)}</span><span class="${x.ok ? 'gain' : 'loss'}">${x.ok ? 'Delivered' : 'Failed: ' + esc(x.error || '')}</span></summary><div class="tgbubble" style="margin-top:8px">${tgToHtml(x.text || '')}</div></details>`).join('')}</div>` : '<p class="muted">No alerts sent yet. They start once a channel is connected and the market is open.</p>';
+    } catch (e) { $('#hist').textContent = e.message; }
+  }
+  loadHist();
+};
+
+// ---------- Settings: Telegram, channels, names, data ----------
+views.settings = (app) => {
+  const st = SYNC || {};
+  const tg = SETTINGS.telegram || {};
+  let chans = JSON.parse(JSON.stringify(SETTINGS.channels || []));
+  const cat = (CONFIG.catalog || []).slice().sort((x, y) => (x.source === y.source ? x.name.localeCompare(y.name) : x.source === 'own' ? -1 : 1));
+  const when = (iso) => iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'not yet';
+  const ro = SERVER ? '' : 'disabled';
+  app.innerHTML = `
+  <section class="head view"><div><div class="eyebrow">Settings</div><h1>Telegram, strategies and data</h1>${SERVER ? '' : '<p class="note">This is a read-only preview. Settings can be changed in the AlgoLens app on your computer.</p>'}</div></section>
+  <section class="kpis">
+    <div class="kpi"><div class="eyebrow">Connected channels</div><div class="v">${chans.length}</div><div class="s">Telegram chats, groups, channels or Discord</div></div>
+    <div class="kpi"><div class="eyebrow">Your bot</div><div class="v" style="font-size:17px;margin-top:6px">${tg.botName ? '@' + esc(tg.botName) : 'Not set up'}</div><div class="s">${tg.hasToken ? '<span class="gain">● Connected</span>' : 'Create one in step 1 below'}</div></div>
+    <div class="kpi"><div class="eyebrow">Alert presets</div><div class="v" style="font-size:17px;margin-top:6px">3 presets</div><div class="s">All alerts · Errors only · P&amp;L only</div></div>
+    <div class="kpi"><div class="eyebrow">Tradetron</div><div class="v" style="font-size:17px;margin-top:6px"><span class="pill ${st.ok === false ? 'paused' : 'live'}">${st.ok === false ? (st.authExpired ? 'Session expired' : 'Sync failed') : 'Connected'}</span></div><div class="s">Live ${when(st.live)} · history ${when(st.history)}</div></div>
+  </section>
+
+  <section class="panel"><div class="panel-h"><div><h2>Telegram setup</h2><p class="faint" style="margin:2px 0 0;font-size:12.5px">Alerts come from your own private bot, so nobody else sees them.</p></div></div>
+    <div class="grid2">
+      <div class="stepcard"><div class="eyebrow">Step 1 · Create your bot (2 minutes)</div>
+        <ol class="steps"><li><span>In Telegram, open <b>@BotFather</b> and send <code>/newbot</code>.</span></li><li><span>Pick a name and a username ending in <code>bot</code>. BotFather replies with a token like <code>123456789:AAE…</code>.</span></li><li><span>Paste the token here and save.</span></li></ol>
+        <div class="controls" style="margin-top:12px"><input class="field mono" id="tgtoken" type="password" autocomplete="off" placeholder="${tg.hasToken ? 'Token saved. Paste a new one to replace it' : '123456789:AAE…'}" style="flex:1;min-width:200px" ${ro}><button class="btn primary" id="saveToken" ${ro}>Save token</button></div></div>
+      <div class="stepcard"><div class="eyebrow">Step 2 · Add where alerts should go</div>
+        <p style="margin:4px 0 8px"><b>Personal chat:</b> open your bot in Telegram and press <b>Start</b>.<br><b>Group or channel:</b> add the bot as an <b>admin</b> with permission to post, then send any message there.</p>
+        <p class="faint" style="font-size:12.5px;margin:0 0 10px">Then click Find my chats. No chat ID hunting needed.</p>
+        <div class="controls"><button class="btn primary" id="detect" ${ro}>Find my chats</button><button class="btn" id="addManual" ${ro}>Enter a chat ID</button><button class="btn" id="addDiscord" ${ro}>Add Discord webhook</button></div>
+        <div id="found" style="margin-top:10px"></div></div>
+    </div>
+    <div class="routes"><div><b class="loss">Errors desk</b><p>Preset <i>Errors only</i>: execution errors, removed strategies, session expiry.</p></div><div><b class="gain">Private P&amp;L</b><p>Preset <i>All alerts</i>: P&amp;L snapshots, end-of-day summaries and errors.</p></div><div><b style="color:var(--c3)">Creator channel</b><p>Preset <i>P&amp;L only</i>, scoped to chosen strategies. No error details are sent.</p></div></div>
+  </section>
+
+  <section class="panel"><div class="panel-h"><h2>Connected channels</h2><button class="btn primary" id="saveChans" ${ro}>Save channels</button></div><div id="chans"></div></section>
+
+  <section class="panel"><div class="panel-h"><div><h2>Strategy names &amp; visibility</h2><p class="faint" style="margin:2px 0 0;font-size:12.5px">Aliases appear across AlgoLens and, if you choose, in alerts. Type is detected automatically; override it here if needed.</p></div><button class="btn primary" id="saveNames" ${ro}>Save</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Show</th><th>Tradetron name</th><th>Group</th><th>Alias</th><th>Type</th><th>SID</th></tr></thead><tbody>
+    ${cat.map((m) => `<tr><td><input type="checkbox" data-show="${m.id}" ${SETTINGS.hidden.includes(m.id) ? '' : 'checked'} aria-label="Show ${esc(m.name)}"></td><td style="white-space:normal;min-width:180px">${esc(m.name)}<div class="sub">${esc(m.creator || '')}</div></td><td><span class="src ${m.source}" style="margin:0">${m.source === 'own' ? 'Mine' : 'Shared'}</span></td><td><input class="field" data-alias="${m.id}" value="${esc(SETTINGS.names[m.id] || '')}" placeholder="Same as Tradetron" style="width:190px"></td><td><select class="field" data-style="${m.id}"><option value="">Auto</option><option ${SETTINGS.styleOverride?.[m.id] === 'Intraday' ? 'selected' : ''}>Intraday</option><option ${SETTINGS.styleOverride?.[m.id] === 'Positional' ? 'selected' : ''}>Positional</option></select></td><td class="mono faint">${m.id}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No strategies yet.</td></tr>'}
+    </tbody></table></div></section>
+
+  <section class="grid2">
+    <div class="panel"><h2>Tradetron connection</h2>
+      <p class="muted" style="margin:6px 0 10px">AlgoLens reads your account with your browser's Tradetron session. When Tradetron logs you out, paste a fresh one: in Chrome on the Tradetron Deployed page press F12 → Network → refresh → click <code>deployments?scope=</code> → copy the <b>Cookie</b> request header value.</p>
+      <textarea class="field mono" id="cookie" rows="3" placeholder="${CONFIG.cookieSaved ? 'Session saved. Paste a new one to replace it' : 'Paste the Cookie value'}" style="width:100%" autocomplete="off" ${ro}></textarea>
+      <div class="controls" style="margin-top:8px"><button class="btn primary" id="saveCookie" ${ro}>Save session</button><button class="btn" id="syncAll" ${ro}>Sync everything now</button></div>
+      <p class="faint" style="font-size:12px;margin:10px 0 0">Treat the session like a password. It stays on this computer.</p></div>
+    <div class="panel"><h2>Refresh schedule</h2>
+      <div class="setrow"><div><b>Live refresh</b><p>Dashboard, monitor, intraday curve and alert checks. Runs ${esc(CONFIG.liveHours || '09:00-23:45')} IST on weekdays.</p></div><select class="field" id="liveInt" ${ro}>${[5, 10, 15, 30].map((m) => `<option value="${m}" ${LIVE.intervalMin === m ? 'selected' : ''}>Every ${m} min</option>`).join('')}</select></div>
+      <div class="setrow"><div><b>Performance history</b><p>Daily at ${esc(CONFIG.syncTime || '23:45')} IST, when AlgoLens starts, and right away for new strategies.</p></div><span class="mono faint">${st.historyCount || 0} strategies</span></div>
+      <div class="setrow"><div><b>Add a strategy</b><p>Deploy it, or add its share code under <b>Shared Codes</b> in Tradetron. It appears here at the next refresh.</p></div></div>
+      ${(st.failed || []).length ? `<p class="faint" style="font-size:12px">No history yet for SID ${st.failed.map((f) => f.id).join(', ')} (new deployments; retried nightly).</p>` : ''}</div>
+  </section>`;
+
+  const presetSel = (c, i) => `<select class="field" data-ci="${i}" data-k="preset"><option value="all" ${c.preset === 'all' ? 'selected' : ''}>All alerts</option><option value="errors" ${c.preset === 'errors' ? 'selected' : ''}>Errors only</option><option value="pnl" ${c.preset === 'pnl' ? 'selected' : ''}>P&amp;L only</option></select>`;
+  function drawChans() {
+    $('#chans').innerHTML = chans.length ? chans.map((c, i) => `<div class="chanrow">
+      <div class="avatar">${c.type === 'discord' ? 'D' : esc((c.name || '?')[0].toUpperCase())}</div>
+      <div style="flex:1;min-width:200px;display:grid;gap:6px">
+        <div class="controls"><input class="field" data-ci="${i}" data-k="name" value="${esc(c.name)}" aria-label="Channel name" style="width:200px">${presetSel(c, i)}
+          <label class="sw"><input type="checkbox" data-ci="${i}" data-k="enabled" ${c.enabled !== false ? 'checked' : ''}><span></span>On</label></div>
+        <div class="mono faint" style="font-size:12px">${c.type === 'discord' ? 'Discord webhook' : 'Telegram chat ' + esc(c.chatId)}</div>
+        <details><summary class="faint" style="font-size:12.5px;cursor:pointer">Strategies: ${c.scope === 'all' || !Array.isArray(c.scope) ? 'all strategies' : c.scope.length + ' selected'}</summary>
+          <div class="scopegrid"><label><input type="checkbox" data-ci="${i}" data-scope="all" ${c.scope === 'all' || !Array.isArray(c.scope) ? 'checked' : ''}> All strategies</label>${cat.map((m) => `<label><input type="checkbox" data-ci="${i}" data-scope="${m.id}" ${Array.isArray(c.scope) && c.scope.includes(m.id) ? 'checked' : ''}> ${esc(SETTINGS.names[m.id] || m.name)}</label>`).join('')}</div></details>
+      </div>
+      <div class="controls"><button class="btn" data-test="${i}">Send test</button><button class="btn" data-rm="${i}">Remove</button></div></div>`).join('') : '<p class="muted">No channels yet. Use step 2 above.</p>';
+  }
+  drawChans();
+  const addChan = (c) => { chans.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), preset: 'all', scope: 'all', enabled: true, type: 'telegram', ...c }); drawChans(); toast('Added. Click Save channels to keep it.'); };
+  $('#chans').addEventListener('change', (e) => {
+    const t = e.target, i = +t.dataset.ci; if (Number.isNaN(i)) return;
+    if (t.dataset.scope) {
+      if (t.dataset.scope === 'all') chans[i].scope = t.checked ? 'all' : [];
+      else { const ids = Array.isArray(chans[i].scope) ? chans[i].scope : []; chans[i].scope = t.checked ? [...ids, +t.dataset.scope] : ids.filter((x) => x !== +t.dataset.scope); }
+      return drawChans();
+    }
+    chans[i][t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value;
+  });
+  $('#chans').addEventListener('click', async (e) => {
+    const rm = e.target.closest('[data-rm]'), te = e.target.closest('[data-test]');
+    if (rm) { chans.splice(+rm.dataset.rm, 1); drawChans(); toast('Removed. Click Save channels to confirm.'); }
+    if (te) { const c = chans[+te.dataset.test]; if (!(SETTINGS.channels || []).some((x) => x.id === c.id)) return toast('Save channels first, then send a test.', true); te.disabled = true; try { toast((await api('api/alerts/test', { id: c.id })).message); } catch (err) { toast(err.message, true); } te.disabled = false; }
+  });
+  $('#saveChans').addEventListener('click', async () => { if (await saveSettings({ channels: chans }, 'Channels saved')) { chans = JSON.parse(JSON.stringify(SETTINGS.channels)); drawChans(); } });
+  $('#saveToken').addEventListener('click', async () => {
+    const token = $('#tgtoken').value.trim(); if (!token) return toast('Paste the token from @BotFather first.', true);
+    try { const j = await api('api/telegram/token', { token }); SETTINGS.telegram = { hasToken: true, botName: j.botName }; toast(`Connected to @${j.botName}. Now do step 2.`); showFound(j.chats); $('#tgtoken').value = ''; } catch (e) { toast(e.message, true); }
+  });
+  function showFound(chats) {
+    const fresh = chats.filter((c) => !chans.some((x) => x.chatId === c.id));
+    $('#found').innerHTML = chats.length ? `<div class="foundlist">${chats.map((c) => `<div><span><b>${esc(c.title)}</b> <span class="faint">${esc(c.type)} · ${esc(c.id)}</span></span>${chans.some((x) => x.chatId === c.id) ? '<span class="gain">Added</span>' : `<button class="btn" data-add='${esc(JSON.stringify(c))}'>Add</button>`}</div>`).join('')}</div>` : '<p class="muted">No chats found yet. Press Start on your bot, or post a message in the group or channel where the bot is admin, then try again.</p>';
+    if (!fresh.length && chats.length) $('#found').insertAdjacentHTML('beforeend', '<p class="faint" style="font-size:12px">All found chats are already added.</p>');
+  }
+  $('#found').addEventListener('click', (e) => { const b = e.target.closest('[data-add]'); if (!b) return; const c = JSON.parse(b.dataset.add); addChan({ name: c.title, chatId: c.id }); b.replaceWith(Object.assign(document.createElement('span'), { className: 'gain', textContent: 'Added' })); });
+  $('#detect').addEventListener('click', async (e) => { e.target.disabled = true; try { const j = await api('api/telegram/detect', {}); showFound(j.chats); } catch (err) { toast(err.message, true); } e.target.disabled = false; });
+  $('#addManual').addEventListener('click', () => {
+    $('#found').innerHTML = `<form class="controls" id="manualF"><input class="field mono" id="mId" placeholder="Chat ID, e.g. -1001234567890" required style="width:220px"><input class="field" id="mName" placeholder="Name" style="width:150px"><button class="btn primary">Add</button></form><p class="faint" style="font-size:12px">Channel and group IDs start with -100. You can get one by forwarding a message to @userinfobot.</p>`;
+    $('#manualF').addEventListener('submit', (ev) => { ev.preventDefault(); addChan({ chatId: $('#mId').value.trim(), name: $('#mName').value.trim() || 'Telegram chat' }); $('#found').innerHTML = ''; });
+  });
+  $('#addDiscord').addEventListener('click', () => {
+    $('#found').innerHTML = `<form class="controls" id="discF"><input class="field mono" id="dUrl" placeholder="https://discord.com/api/webhooks/…" required style="flex:1;min-width:240px"><input class="field" id="dName" placeholder="Name" style="width:140px"><button class="btn primary">Add</button></form><p class="faint" style="font-size:12px">In Discord: channel settings → Integrations → Webhooks → New webhook → Copy URL.</p>`;
+    $('#discF').addEventListener('submit', (ev) => { ev.preventDefault(); const u = $('#dUrl').value.trim(); if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(u)) return toast('That is not a Discord webhook address.', true); addChan({ type: 'discord', webhook: u, name: $('#dName').value.trim() || 'Discord' }); $('#found').innerHTML = ''; });
+  });
+  $('#saveNames').addEventListener('click', async () => {
+    const names = {}, styleOverride = {}, hidden = [];
+    app.querySelectorAll('[data-alias]').forEach((i) => { names[i.dataset.alias] = i.value; });
+    app.querySelectorAll('[data-style]').forEach((s) => { styleOverride[s.dataset.style] = s.value; });
+    app.querySelectorAll('[data-show]').forEach((c) => { if (!c.checked) hidden.push(+c.dataset.show); });
+    if (await saveSettings({ names, styleOverride, hidden }, 'Saved. Reloading…')) setTimeout(() => location.reload(), 600);
+  });
+  $('#saveCookie').addEventListener('click', async () => { const c = $('#cookie').value.trim(); if (!c) return toast('Paste the Cookie value first.', true); try { toast((await api('api/session', { cookie: c })).message); $('#cookie').value = ''; } catch (e) { toast(e.message, true); } });
+  $('#syncAll').addEventListener('click', async () => { try { toast((await api('api/sync', {})).message); } catch (e) { toast(e.message, true); } });
+  $('#liveInt').addEventListener('change', (e) => saveSettings({ liveIntervalMin: +e.target.value }, `Live refresh every ${e.target.value} min from the next refresh`));
+};
+views.sources = views.settings;
+
+views.overview = (app) => {
+  const tot = S.reduce((a, s) => a + s.r.totalPnl, 0), cap = S.reduce((a, s) => a + s.cap, 0);
+  const p30 = S.reduce((a, s) => a + (s.r.pnl30 || 0), 0);
+  if (!S.length) { app.innerHTML = `<section class="head view"><div><h1>Performance</h1><p>No performance history for this group yet. History is collected once a day, and right away for newly added strategies.</p></div></section>`; return; }
+  const best = [...S].sort((a, b) => b.r.sharpe - a.r.sharpe)[0];
+  const liveN = S.filter((s) => /live/i.test(s.status)).length;
+  app.innerHTML = `
+  <section class="head view"><div><div class="eyebrow">${{ all: 'My and shared strategies', own: 'My deployments', shared: 'Shared-code strategies' }[pref.src || 'all']}</div><h1>Performance</h1>
+    <p>Metrics are computed from each deployment's daily P&amp;L since it went live. Click a row for the full report.</p></div></section>
+  <section class="kpis">
+    <div class="kpi"><div class="eyebrow">Tracked</div><div class="v">${S.length}</div><div class="s">${liveN} in a position now</div></div>
+    <div class="kpi"><div class="eyebrow">Combined P&amp;L</div><div class="v ${sgnCls(tot)}">${inrC(tot)}</div><div class="s">on ${inrC(cap)} capital</div></div>
+    <div class="kpi"><div class="eyebrow">Last 30 days</div><div class="v ${sgnCls(p30)}">${inrC(p30)}</div><div class="s">${pct(p30 / cap * 100, 2)} of capital</div></div>
+    <div class="kpi"><div class="eyebrow">Best Sharpe</div><div class="v">${fnum(best.r.sharpe)}</div><div class="s">${esc(best.name.slice(0, 26))}</div></div>
+  </section>
+  <section class="panel" style="padding:0;border:0;background:none">
+    <div class="panel-h">
+      <div class="controls">
+        <input id="q" class="field" type="search" placeholder="Search strategy or creator" aria-label="Search" value="${esc(filt.q)}" style="width:min(260px,100%)">
+        <select id="ex" class="field" aria-label="Exchange">${['All', 'NFO', 'BFO', 'MCX'].map((e) => `<option value="${e}" ${filt.ex === e ? 'selected' : ''}>${e === 'All' ? 'All exchanges' : e}</option>`).join('')}</select>
+        <select id="st" class="field" aria-label="Status">${['All', 'Live-Entered', 'Active', 'Paused'].map((e) => `<option value="${e}" ${filt.st === e ? 'selected' : ''}>${e === 'All' ? 'All statuses' : e}</option>`).join('')}</select>
+      </div>
+      <span class="faint" style="font-size:12px">Sorted by <span id="sortLbl"></span>. Click a column to re-sort.</span>
+    </div>
+    <div class="tablewrap"><table id="lb"></table></div>
+  </section>`;
+  const cols = [
+    ['#', null], ['Strategy', 'name'], ['Status', null], ['Capital', 'cap', 1], ['Total P&L', 'totalPnl', 1], ['Annual', 'annualReturnPct', 1],
+    ['Max DD', 'maxDDPct', 1], ['Sharpe', 'sharpe', 1], ['Win days', 'winRatePct', 1], ['30 days', 'pnl30', 1], ['Since live', null],
+  ];
+  const label = { name: 'name', cap: 'capital', totalPnl: 'total P&L', annualReturnPct: 'annual return', maxDDPct: 'max drawdown', sharpe: 'Sharpe', winRatePct: 'win days', pnl30: '30-day P&L' };
+  function draw() {
+    const val = (s) => sortKey === 'name' ? s.name.toLowerCase() : sortKey === 'cap' ? s.cap : s.r[sortKey];
+    const rows = S.filter((s) => (filt.ex === 'All' || s.ex === filt.ex) && (filt.st === 'All' || s.status === filt.st) && (!filt.q || (s.name + ' ' + s.creator).toLowerCase().includes(filt.q.toLowerCase())))
+      .sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * sortDir);
+    $('#sortLbl').textContent = label[sortKey] + (sortDir < 0 ? ', high to low' : ', low to high');
+    $('#lb').innerHTML = `<thead><tr>${cols.map(([t, k, n]) => `<th class="${n ? 'n' : ''}" ${k === sortKey ? `aria-sort="${sortDir < 0 ? 'descending' : 'ascending'}"` : ''}>${k ? `<button data-k="${k}">${t}${k === sortKey ? (sortDir < 0 ? ' ↓' : ' ↑') : ''}</button>` : t}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map((s, i) => `<tr class="click" data-id="${s.id}" tabindex="0">
+      <td class="rank">${i + 1}</td>
+      <td><span class="sname" title="${esc(s.name)}">${esc(s.name)}</span><span class="screator">${esc(s.creator)} · <span class="chip">${s.ex}</span><span class="src ${s.source}">${s.source === 'own' ? 'Mine' : 'Shared'}</span>${s.type === 'LIVE OFFLINE' ? '<span class="tag">paper</span>' : ''}</span></td>
+      <td>${statusPill(s.status)}</td>
+      <td class="n">${inrC(s.cap)}</td>
+      <td class="n ${sgnCls(s.r.totalPnl)}">${inrC(s.r.totalPnl)}</td>
+      <td class="n"><b>${pct(s.r.annualReturnPct)}</b>${s.r.tradingDays < 125 ? '<span class="tag" title="Under 6 months of history; the annualised figure is less reliable">&lt;6M</span>' : ''}</td>
+      <td class="n loss">${pct(-s.r.maxDDPct, 2)}</td>
+      <td class="n">${fnum(s.r.sharpe)}</td>
+      <td class="n">${pct(s.r.winRatePct)}</td>
+      <td class="n ${sgnCls(s.r.pnl30)}">${s.r.pnl30 == null ? '—' : inrC(s.r.pnl30)}</td>
+      <td>${sparkline(s.r.cum)}</td></tr>`).join('') || `<tr><td colspan="11" class="muted" style="padding:28px;text-align:center">No strategies match these filters.</td></tr>`}</tbody>`;
+  }
+  draw();
+  $('#lb').addEventListener('click', (e) => {
+    const b = e.target.closest('th button'); if (b) { const k = b.dataset.k; sortDir = k === sortKey ? -sortDir : (k === 'name' || k === 'maxDDPct' ? 1 : -1); sortKey = k; pref.sort = k; pref.dir = sortDir; save(); return draw(); }
+    const tr = e.target.closest('tr[data-id]'); if (tr) location.hash = 's' + tr.dataset.id;
+  });
+  $('#lb').addEventListener('keydown', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr && e.key === 'Enter') location.hash = 's' + tr.dataset.id; });
+  $('#q').addEventListener('input', (e) => { filt.q = e.target.value; draw(); });
+  $('#ex').addEventListener('change', (e) => { filt.ex = e.target.value; draw(); });
+  $('#st').addEventListener('change', (e) => { filt.st = e.target.value; draw(); });
+};
+
+function heatmap(r, capital) {
+  const years = Object.keys(r.yearly).sort().reverse();
+  const maxAbs = Math.max(...Object.values(r.monthly).map((v) => Math.abs(v / capital * 100)), 1);
+  const cell = (v) => {
+    if (v == null) return `<td class="faint">·</td>`;
+    const p = v / capital * 100, a = Math.min(1, Math.abs(p) / maxAbs) * 0.85 + 0.08;
+    const bg = `color-mix(in srgb, ${p >= 0 ? 'var(--gain)' : 'var(--loss)'} ${Math.round(a * 100)}%, var(--surface))`;
+    return `<td style="background:${bg};color:${a > 0.55 ? 'var(--surface)' : 'var(--fg)'}" title="${inr(v)}">${p.toFixed(1)}</td>`;
+  };
+  return `<div style="overflow-x:auto"><table class="heat"><thead><tr><th></th>${MON.map((m) => `<th class="eyebrow">${m}</th>`).join('')}<th class="eyebrow">Year</th></tr></thead><tbody>
+  ${years.map((y) => `<tr><th class="y">${y}</th>${MON.map((_, i) => cell(r.monthly[`${y}-${String(i + 1).padStart(2, '0')}`])).join('')}<td class="tot ${sgnCls(r.yearly[y])}">${(r.yearly[y] / capital * 100).toFixed(1)}</td></tr>`).join('')}
+  </tbody></table></div><p class="faint" style="font-size:12px;margin:8px 0 0">Monthly return as % of deployed capital. Hover a cell for the rupee amount.</p>`;
+}
+
+views.strategy = (app, id) => {
+  const s = byId[id]; if (!s) { location.hash = 'overview'; return; }
+  let range = pref.range || 'All';
+  app.innerHTML = `
+  <section class="view"><a class="back" href="#overview">← All strategies</a>
+    <div class="head" style="margin-top:8px"><div><div class="eyebrow">${esc(s.creator)}</div><h1>${esc(s.name)}</h1>
+      <div class="meta-line">${statusPill(s.status)}<span class="chip">${s.ex}</span><span>${s.type === 'LIVE OFFLINE' ? 'Paper (Live Offline)' : 'Live Auto'} via ${esc(s.broker)}</span><span>Live since ${fdate(s.on)}</span><span>Counter ${s.ctr}</span><span class="faint">SID ${s.id}</span></div></div>
+      <div class="seg" role="group" aria-label="Period" id="range">${Object.keys(RANGES).map((k) => `<button aria-pressed="${k === range}">${k}</button>`).join('')}</div>
+    </div></section>
+  <section class="kpis" id="kp"></section>
+  ${liveCounterPanel(id)}
+  <section class="panel"><div class="panel-h"><h2>Equity curve</h2><span class="faint" id="eqNote" style="font-size:12px"></span></div><div id="eq"></div></section>
+  <section class="panel"><div class="panel-h"><h2>Drawdown</h2><span class="faint" style="font-size:12px">% below the previous peak (capital + profit)</span></div><div id="dd"></div></section>
+  <section class="panel"><div class="panel-h"><h2>Monthly returns</h2></div>${heatmap(s.r, s.cap)}</section>
+  <section class="grid2">
+    <div class="panel"><div class="panel-h"><h2>Profit by weekday</h2></div><div id="dow"></div></div>
+    <div class="panel"><div class="panel-h"><h2>Deepest drawdowns</h2></div><div id="ddt"></div></div>
+  </section>
+  <section class="panel"><div class="panel-h"><h2>Full statistics</h2><span class="faint" style="font-size:12px" id="stNote"></span></div><dl class="stats" id="stats"></dl></section>`;
+  function draw() {
+    const ser = slice(s.series, range), r = A.analyze(ser, s.cap);
+    $('#kp').innerHTML = `
+      <div class="kpi"><div class="eyebrow">P&amp;L</div><div class="v ${sgnCls(r.totalPnl)}">${inrC(r.totalPnl)}</div><div class="s">${pct(r.roiPct, 2)} on ${inrC(s.cap)}</div></div>
+      <div class="kpi"><div class="eyebrow">Annual return</div><div class="v">${pct(r.annualReturnPct)}</div><div class="s">${pct(r.avgMonthlyRoiPct, 2)} a month</div></div>
+      <div class="kpi"><div class="eyebrow">Max drawdown</div><div class="v loss">${pct(-r.maxDDPct, 2)}</div><div class="s">${inrC(-r.maxDD)} · ${r.longestDDDays}d longest</div></div>
+      <div class="kpi"><div class="eyebrow">Sharpe / Sortino</div><div class="v">${fnum(r.sharpe)}</div><div class="s">Sortino ${fnum(r.sortino)} · Calmar ${fnum(r.calmar)}</div></div>
+      <div class="kpi"><div class="eyebrow">Win days</div><div class="v">${pct(r.winRatePct)}</div><div class="s">${r.winDays} up · ${r.lossDays} down</div></div>
+      <div class="kpi"><div class="eyebrow">Now</div><div class="v ${r.inDrawdownNow ? 'loss' : 'gain'}">${r.inDrawdownNow ? pct(-r.currentDDPct, 2) : 'At peak'}</div><div class="s">${r.inDrawdownNow ? inrC(-r.currentDD) + ' below high' : 'new high on ' + fdate(r.end)}</div></div>`;
+    const c1 = lineChart({ dates: r.dates, lines: [{ values: r.cum, color: 'var(--accent)' }] });
+    $('#eq').innerHTML = c1.html; c1.bind($('#eq'));
+    $('#eqNote').textContent = `${fdate(r.start)} – ${fdate(r.end)} · ${r.tradingDays} trading days`;
+    const c2 = lineChart({ dates: r.dates, lines: [{ values: r.ddSeries, color: 'var(--loss)' }], h: 170, fmt: (v) => v.toFixed(1) + '%' });
+    $('#dd').innerHTML = c2.html; c2.bind($('#dd'));
+    const order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    $('#dow').innerHTML = barChart(order.filter((d) => r.dow[d]).map((d) => ({ label: d, value: r.dow[d].pnl })));
+    $('#ddt').innerHTML = `<div class="tablewrap" style="border:0"><table><thead><tr><th>From peak</th><th>Recovered</th><th class="n">Depth</th><th class="n">Days</th></tr></thead><tbody>${r.ddPeriods.map((p) => `<tr><td>${fdate(p.start)}</td><td>${p.end ? fdate(p.end) : '<span class="pill paused">Ongoing</span>'}</td><td class="n loss">${inrC(-p.depth)}</td><td class="n">${p.days}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No drawdowns in this period.</td></tr>'}</tbody></table></div>`;
+    const rows = [
+      ['Total P&L', inr(r.totalPnl)], ['Return on capital', pct(r.roiPct, 2)], ['Annualised return', pct(r.annualReturnPct, 2)], ['Avg monthly P&L', inr(r.avgMonthlyPnl)],
+      ['Profitable months', pct(r.monthsPositivePct, 0)], ['Max drawdown', inr(-r.maxDD)], ['Max drawdown %', pct(r.maxDDPct, 2)], ['Max drawdown % of capital', pct(r.maxDDCapPct, 2)],
+      ['Max DD period', `${fdate(r.maxDDStart)} → ${fdate(r.maxDDTrough)}`], ['Max DD recovered', r.maxDDRecovered ? fdate(r.maxDDRecovered) : 'Not yet'], ['Longest drawdown', r.longestDDDays + ' days'], ['Volatility (annual)', pct(r.volAnnPct, 2)],
+      ['Sharpe ratio', fnum(r.sharpe)], ['Sortino ratio', fnum(r.sortino)], ['Calmar ratio', fnum(r.calmar)], ['Profit factor', fnum(r.profitFactor)],
+      ['Win days / loss days / flat', `${r.winDays} / ${r.lossDays} / ${r.flatDays}`], ['Avg win day', inr(r.avgWin)], ['Avg loss day', inr(r.avgLoss)], ['Payoff ratio', fnum(r.payoff)],
+      ['Best day', `${inr(r.bestDay)} · ${fdate(r.bestDate)}`], ['Worst day', `${inr(r.worstDay)} · ${fdate(r.worstDate)}`], ['Longest win streak', r.maxWinStreak + ' days'], ['Longest loss streak', r.maxLossStreak + ' days'],
+    ];
+    $('#stats').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+    $('#stNote').textContent = range === 'All' ? 'Since deployment' : 'Last ' + range;
+  }
+  draw();
+  $('#range').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; range = b.textContent; pref.range = range; save(); [...$('#range').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); draw(); });
+};
+
+views.compare = (app) => {
+  let sel = (pref.cmp || S.slice(0, 3).map((s) => s.id)).filter((id) => byId[id]).slice(0, 4), range = '1Y';
+  app.innerHTML = `
+  <section class="head view"><div><div class="eyebrow">Side by side</div><h1>Compare strategies</h1><p>Pick up to four. Curves show return on each strategy's own capital over the same window, so different sizes compare fairly.</p></div>
+    <div class="seg" role="group" aria-label="Period" id="crange">${['3M', '6M', '1Y', 'All'].map((k) => `<button aria-pressed="${k === range}">${k}</button>`).join('')}</div></section>
+  <section class="pick" id="cpick">${S.map((s) => `<label><input type="checkbox" value="${s.id}" ${sel.includes(s.id) ? 'checked' : ''}><span class="pn" title="${esc(s.name)}">${esc(s.name)}</span><span class="chip">${s.ex}</span></label>`).join('')}</section>
+  <section class="panel"><div class="panel-h"><h2>Return on capital</h2><div class="legend" id="cleg"></div></div><div id="cchart"></div><p class="faint" id="cnote" style="font-size:12px;margin:8px 0 0"></p></section>
+  <section class="tablewrap" id="ctable"></section>
+  <section class="panel"><div class="panel-h"><h2>Daily P&amp;L correlation</h2><span class="faint" style="font-size:12px">Lower means better diversification</span></div><div id="corr"></div></section>`;
+  function draw() {
+    const items = sel.map((id) => byId[id]);
+    if (!items.length) { $('#cchart').innerHTML = '<p class="muted">Pick at least one strategy above.</p>'; $('#ctable').innerHTML = ''; $('#corr').innerHTML = ''; $('#cleg').innerHTML = ''; return; }
+    // common window: latest start among selected (for All) or range
+    const latestStart = items.map((s) => s.series[0][0]).sort().pop();
+    const sliced = items.map((s) => {
+      if (range !== 'All') return slice(s.series, range);
+      const i0 = s.series.findIndex((r) => r[0] >= latestStart), b = i0 > 0 ? s.series[i0 - 1][1] : 0; // rebase to the common start
+      return s.series.slice(i0).map((r) => [r[0], r[1] - b]);
+    });
+    const dates = [...new Set(sliced.flat().map((r) => r[0]))].sort();
+    const lines = items.map((s, i) => { const m = new Map(sliced[i].map((r) => [r[0], r[1]])); let last = null; return { name: s.name, color: COLORS[i], values: dates.map((d) => { if (m.has(d)) last = m.get(d) / s.cap * 100; return last; }) }; });
+    const c = lineChart({ dates, lines, fmt: (v) => v.toFixed(1) + '%', area: false });
+    $('#cchart').innerHTML = c.html; c.bind($('#cchart'));
+    $('#cleg').innerHTML = items.map((s, i) => `<span><i style="background:${COLORS[i]}"></i>${esc(s.name.slice(0, 28))}</span>`).join('');
+    $('#cnote').textContent = range === 'All' ? `Window starts ${fdate(latestStart)}, when the newest selected strategy went live.` : '';
+    const rs = sliced.map((ser, i) => A.analyze(ser, items[i].cap));
+    const metric = [['Return on capital', (r) => pct(r.roiPct, 2)], ['Annualised', (r) => pct(r.annualReturnPct)], ['Max drawdown', (r) => pct(-r.maxDDPct, 2)], ['Sharpe', (r) => fnum(r.sharpe)], ['Sortino', (r) => fnum(r.sortino)], ['Volatility', (r) => pct(r.volAnnPct)], ['Win days', (r) => pct(r.winRatePct)], ['Profit factor', (r) => fnum(r.profitFactor)], ['Worst day', (r) => inrC(r.worstDay)], ['Capital', (r) => inrC(r.capital)]];
+    $('#ctable').innerHTML = `<table><thead><tr><th>Metric</th>${items.map((s, i) => `<th class="n"><span class="swatch" style="display:inline-block;background:${COLORS[i]};margin-right:6px"></span>${esc(s.name.slice(0, 20))}</th>`).join('')}</tr></thead><tbody>${metric.map(([k, f]) => `<tr><td class="muted">${k}</td>${rs.map((r) => `<td class="n">${f(r)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    $('#corr').innerHTML = corrTable(items, sliced);
+  }
+  draw();
+  $('#cpick').addEventListener('change', (e) => {
+    const id = +e.target.value;
+    if (e.target.checked) { if (sel.length >= 4) { e.target.checked = false; return; } sel.push(id); } else sel = sel.filter((x) => x !== id);
+    pref.cmp = sel; save(); draw();
+  });
+  $('#crange').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; range = b.textContent; [...$('#crange').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); draw(); });
+};
+
+function corrTable(items, series) {
+  if (items.length < 2) return '<p class="muted">Pick two or more strategies to see how their daily results move together.</p>';
+  const short = (s) => esc(s.name.length > 16 ? s.name.slice(0, 15) + '…' : s.name);
+  return `<div style="overflow-x:auto"><table class="corr"><thead><tr><th></th>${items.map((s) => `<th class="n">${short(s)}</th>`).join('')}</tr></thead><tbody>${items.map((a, i) => `<tr><th style="text-transform:none;letter-spacing:0;font-size:12px;color:var(--fg-2)">${short(a)}</th>${items.map((b, j) => {
+    if (i === j) return '<td class="faint">1.00</td>';
+    const c = A.correlation(series[i], series[j]); if (c == null) return '<td class="faint">—</td>';
+    const bg = `color-mix(in srgb, ${c > 0 ? 'var(--warn)' : 'var(--accent)'} ${Math.round(Math.abs(c) * 55)}%, var(--surface))`;
+    return `<td style="background:${bg}">${c.toFixed(2)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
+views.portfolio = (app) => {
+  let w = pref.pw || Object.fromEntries(S.slice(0, 5).map((s) => [s.id, 1]));
+  app.innerHTML = `
+  <section class="head view"><div><div class="eyebrow">What if I ran these together?</div><h1>Portfolio builder</h1><p>Tick strategies and set a multiplier for each. The combined curve adds their daily P&amp;L, from the date the newest pick went live, so you see real overlap and offsetting days.</p></div></section>
+  <section class="pick" id="ppick">${S.map((s) => `<label><input type="checkbox" value="${s.id}" ${w[s.id] ? 'checked' : ''}><span class="pn" title="${esc(s.name)}">${esc(s.name)}</span><input type="number" class="field" min="0.5" step="0.5" value="${w[s.id] || 1}" aria-label="Multiplier for ${esc(s.name)}" data-m="${s.id}">×</label>`).join('')}</section>
+  <section class="kpis" id="pk"></section>
+  <section class="panel"><div class="panel-h"><h2>Combined equity</h2><span class="faint" id="pnote" style="font-size:12px"></span></div><div id="pchart"></div></section>
+  <section class="grid2"><div class="panel"><div class="panel-h"><h2>Combined drawdown</h2></div><div id="pdd"></div></div>
+  <div class="panel"><div class="panel-h"><h2>Correlation</h2></div><div id="pcorr"></div></div></section>
+  <section class="panel"><div class="panel-h"><h2>Monthly returns</h2></div><div id="pheat"></div></section>`;
+  function draw() {
+    const ids = Object.keys(w).map(Number).filter((id) => byId[id] && w[id] > 0);
+    if (!ids.length) { $('#pk').innerHTML = ''; $('#pchart').innerHTML = '<p class="muted">Tick at least one strategy.</p>'; $('#pdd').innerHTML = $('#pcorr').innerHTML = $('#pheat').innerHTML = ''; return; }
+    const start = ids.map((id) => byId[id].series[0][0]).sort().pop();
+    const parts = ids.map((id) => { const s = byId[id]; const i0 = s.series.findIndex((r) => r[0] >= start); const b = i0 > 0 ? s.series[i0 - 1][1] : 0; return { series: s.series.slice(i0).map((r) => [r[0], r[1] - b]), capital: s.cap, weight: w[id] }; });
+    const comb = A.combine(parts), r = A.analyze(comb.series, comb.capital);
+    const sumMaxDD = ids.reduce((a, id, k) => a + A.analyze(parts[k].series, byId[id].cap).maxDD * w[id], 0);
+    $('#pk').innerHTML = `
+      <div class="kpi"><div class="eyebrow">Capital needed</div><div class="v">${inrC(comb.capital)}</div><div class="s">${ids.length} strategies</div></div>
+      <div class="kpi"><div class="eyebrow">Combined P&amp;L</div><div class="v ${sgnCls(r.totalPnl)}">${inrC(r.totalPnl)}</div><div class="s">${pct(r.annualReturnPct)} a year</div></div>
+      <div class="kpi"><div class="eyebrow">Max drawdown</div><div class="v loss">${inrC(-r.maxDD)}</div><div class="s">${pct(-r.maxDDCapPct, 2)} of capital</div></div>
+      <div class="kpi"><div class="eyebrow">Diversification</div><div class="v gain">${pct((1 - r.maxDD / Math.max(1, sumMaxDD)) * 100, 0)}</div><div class="s">smaller DD than the parts' total</div></div>
+      <div class="kpi"><div class="eyebrow">Sharpe</div><div class="v">${fnum(r.sharpe)}</div><div class="s">Win days ${pct(r.winRatePct)}</div></div>`;
+    const c = lineChart({ dates: r.dates, lines: [{ values: r.cum, color: 'var(--accent)' }] }); $('#pchart').innerHTML = c.html; c.bind($('#pchart'));
+    $('#pnote').textContent = `${fdate(r.start)} – ${fdate(r.end)}`;
+    const d = lineChart({ dates: r.dates, lines: [{ values: r.ddSeries, color: 'var(--loss)' }], h: 170, fmt: (v) => v.toFixed(1) + '%' }); $('#pdd').innerHTML = d.html; d.bind($('#pdd'));
+    $('#pcorr').innerHTML = corrTable(ids.map((id) => byId[id]), parts.map((p) => p.series));
+    $('#pheat').innerHTML = heatmap(r, comb.capital);
+  }
+  draw();
+  $('#ppick').addEventListener('change', (e) => {
+    const t = e.target, lab = t.closest('label'), id = +(t.value && t.type === 'checkbox' ? t.value : t.dataset.m);
+    const cb = lab.querySelector('input[type=checkbox]'), m = lab.querySelector('input[type=number]');
+    if (cb.checked) w[id] = Math.max(0.5, +m.value || 1); else delete w[id];
+    pref.pw = w; save(); draw();
+  });
+};
+
+// ---------- router ----------
+let currentKey = '';
+function route(keepScroll) {
+  const h = location.hash.slice(1) || 'dashboard', app = $('#app');
+  const m = h.match(/^s(\d+)$/);
+  const key = m ? 'overview' : (views[h] ? h : 'dashboard');
+  currentKey = m ? 'strategy' : key;
+  document.querySelectorAll('.nav a').forEach((a) => { if (a.dataset.v === key && !m) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  const y = window.scrollY;
+  if (m) views.strategy(app, +m[1]); else views[key](app);
+  window.scrollTo(0, keepScroll === true ? y : 0);
+}
+addEventListener('hashchange', () => route()); route();
+
+// Pick up new live data from the server without reloading (when served by AlgoLens on your computer)
+async function pollLive(force) {
+  try {
+    const r = await fetch('api/live', { cache: 'no-store' }); if (!r.ok) return;
+    const j = await r.json();
+    const changed = force || j.live.fetchedAt !== LIVE.fetchedAt || j.sync.ok !== SYNC.ok || (j.intraday.snaps || []).length !== (INTRADAY.snaps || []).length;
+    if (!changed) return;
+    LIVE = j.live; INTRADAY = j.intraday; SYNC = { ...SYNC, ...j.sync }; drawSrcSeg(); drawSyncTxt();
+    if (currentKey === 'dashboard' && views.dashboard.redraw && $('#dt')) views.dashboard.redraw();
+    if (currentKey === 'monitor' && views.monitor.redraw && $('#mc')) views.monitor.redraw();
+  } catch (e) {}
+}
+if (SERVER) setInterval(pollLive, 60000);
+})();
+</script>

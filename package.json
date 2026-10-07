@@ -1,0 +1,15 @@
+{
+  "name": "algolens",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Strategy analytics from Tradetron share codes",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "sync": "node collector.js",
+    "test": "node test/collector.test.js && node test/alerts.test.js"
+  }
+}
